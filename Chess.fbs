@@ -3,7 +3,7 @@
 // Optimizing for data I/O
 
 native_include "ChessGame.h";
-namespace ZocoloChess;
+namespace Serializer;
 
 enum Color:byte { White = 0, Black = 1 }
 enum PieceType:byte {
@@ -17,9 +17,9 @@ enum PieceType:byte {
 
 // 0 - 7 maps to A - H
 // 15/15 means the piece is taken. In some cases it might be faster to update in place
-struct Coord(native_type:"ChessGame::coordinate") {
-    row:byte;
+struct Coord(native_type:"ZocoloChess::coordinate") {
     column:byte;
+    row:byte;
 }
 
 // TODO: if i want this to be mutable, should be a table.  Structs shouldn't change

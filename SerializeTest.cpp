@@ -12,54 +12,56 @@
 #include <fstream>
 #include <sstream>
 
-using namespace ChessGame;
+using namespace ZocoloChess;
+using std::to_string;
 
 std::ostream& operator<< (std::ostream& os, const Collumn &col)
 {
   switch (col) {
-    case(ChessGame::A): os << "A ";
-    case(ChessGame::B): os << "B";
-    case(ChessGame::C): os << "C";
-    case(ChessGame::D): os << "D";
-    case(ChessGame::E): os << "E";
-    case(ChessGame::F): os << "F";
-    case(ChessGame::G): os << "G";
-    case(ChessGame::H): os << "H";
-    case(ChessGame::X): os << "X";
+    case(A): os << "A"; break;
+    case(B): os << "B"; break;
+    case(C): os << "C";  break;
+    case(D): os << "D";  break;
+    case(E): os << "E";  break;
+    case(F): os << "F";  break;
+    case(G): os << "G";  break;
+    case(H): os << "H";  break;
+    case(X): os << "X";  break;
   };
   return os;
 };
 
 std::ostream& operator<<(std::ostream& os, const coordinate &c) {
-  return os << c.collumn << c.row;
+  return os << c.collumn << (int)c.row;
 }
 
-std::string to_string(const ChessGame::Collumn &col) {
+std::string to_string(const Collumn &col) {
   std::stringstream ss;
   ss << col;
   return ss.str();
 }
 
-std::string to_string(const ChessGame::coordinate& c) {
+std::string to_string(const coordinate& c) {
   std::stringstream ss;
   ss << c;
   return ss.str();
 }
 
 namespace flatbuffers {
-  ZocoloChess::Coord Pack(const ChessGame::coordinate& obj) {
-    return ZocoloChess::Coord(obj.row, obj.collumn);
+  Serializer::Coord Pack(const coordinate& obj) {
+    return Serializer::Coord(obj.collumn, obj.row);
   }
 
-  const ChessGame::coordinate UnPack(const ZocoloChess::Coord& obj) {
-    return ChessGame::coordinate(obj.row(), obj.column());
+  const coordinate UnPack(const Serializer::Coord& obj) {
+    return coordinate(obj.column(), obj.row());
   }
 }
 
 
 void readBoard(char *buffer_ptr) {
-  auto board = ZocoloChess::GetChessBoard(buffer_ptr);
+  auto board = Serializer::GetChessBoard(buffer_ptr);
   auto black_bishops = board->black_bishops();
+  auto black_rooks = board->black_rooks();
   auto moves = board->moves();
   auto white_pawns = board->white_pawns();
   std::string out = std::format("white pawns size:{} ", white_pawns->size());
@@ -68,8 +70,7 @@ void readBoard(char *buffer_ptr) {
     out += std::format("p{}:{}{},", i, pawn_ptr->column(), pawn_ptr->row());
   }
   std::cout << out << std::endl;
-  out = std::format("white pawns size:{} ", white_pawns->size());
-  auto black_rooks = board->black_rooks();
+  out = std::format("black rooks size:{} ", black_rooks->size());
   for (int i = 0; i < black_rooks->size(); i++) {
     auto rook_ptr = black_rooks->Get(i);
     out += std::format("p{}:{}{},", i, rook_ptr->column(), rook_ptr->row());
@@ -82,58 +83,111 @@ void readBoard(char *buffer_ptr) {
     out += std::format("{}-->{}{}, ", (uint8_t)move_ptr->type(), move_ptr->move().column(), move_ptr->move().row());
   }
 
-  auto board2 = ZocoloChess::UnPackChessBoard(buffer_ptr);
+  std::cout << out << std::endl;
+  out = std::format("moves size:{}, ", moves->size());
+  for (int i = 0; i < moves->size(); i++) {
+    auto move_ptr = moves->Get(i);
+    out += std::format("{}-->{}{}, ", (uint8_t)move_ptr->type(), move_ptr->move().column(), move_ptr->move().row());
+  }
+  std::cout << out << std::endl;
+  out = std::format("moves size:{}, ", moves->size());
+  for (int i = 0; i < moves->size(); i++) {
+    auto move_ptr = moves->Get(i);
+    out += std::format("{}-->{}{}, ", (uint8_t)move_ptr->type(), move_ptr->move().column(), move_ptr->move().row());
+  }
+
+  std::cout << out << std::endl;
+  auto black_kings1 = board->black_kings();
+  out = std::format("black kings (basic serialization) size:{} ", white_pawns->size());
+  for (int i = 0; i < black_kings1->size(); i++) {
+    auto king_ptr = black_kings1->Get(i);
+    out += std::format("K{}:{}{},", i, king_ptr->column(), king_ptr->row());
+  }
+
+
+  auto board2 = Serializer::UnPackChessBoard(buffer_ptr);
   auto &black_kings = board2->black_kings;
   std::cout << out << std::endl;
-  std::cout << std::format("black kings size:{}", black_kings.size());
+  std::cout << std::format("black kings (object api) size:{} ", black_kings.size());
   for (int i = 0; i < black_kings.size(); i++) {
-    ChessGame::coordinate black_king = black_kings.at(i);
+    coordinate black_king = black_kings.at(i);
     std::cout << "K:" << black_kings.at(i);
-    // TODO: think about adding a std::to_string overload for my classes
+    std::cout << "   K:" << to_string(black_king);
+        // TODO: think about adding a std::to_string overload for my classes
     //out += std::format("k:{}", black_kings.at(i));
   }
+
+  std::cout << std::endl;
+  for (int i = 0 ; i < board2->white_bishops.size(); i++) {
+    std::cout << "  White B:" << board2->white_bishops.at(i);
+  }
+  std::cout << std::endl;
+  std::cout << std::endl << "white Pawns:";
+  for (int i = 0 ; i < board2->white_pawns.size(); i++) { std::cout << "  " << board2->white_pawns.at(i); }
+  std::cout << std::endl << "black Pawns:";
+  for (int i = 0 ; i < board2->black_pawns.size(); i++) { std::cout << "  " << board2->black_pawns.at(i); }
+  std::cout << std::endl << "white bishops:";
+  for (int i = 0 ; i < board2->white_bishops.size(); i++) { std::cout << "  " << board2->white_bishops.at(i); }
+  std::cout << std::endl << "black bishops:";
+  for (int i = 0 ; i < board2->black_bishops.size(); i++) { std::cout << "  " << board2->black_bishops.at(i); }
+  std::cout << std::endl << "white knights";
+  for (int i = 0 ; i < board2->white_knights.size(); i++) { std::cout << "  " << board2->white_knights.at(i); }
+  std::cout << std::endl << "black knights";
+  for (int i = 0 ; i < board2->black_knights.size(); i++) { std::cout << "  " << board2->black_knights.at(i); }
+  std::cout << std::endl << "white rooks";
+  for (int i = 0 ; i < board2->white_rooks.size(); i++) { std::cout << "  " << board2->white_rooks.at(i); }
+  std::cout << std::endl << "black rooks";
+  for (int i = 0 ; i < board2->black_rooks.size(); i++) { std::cout << "  " << board2->black_rooks.at(i); }
+  std::cout << std::endl << "white queens";
+  for (int i = 0 ; i < board2->white_queens.size(); i++) { std::cout << "  " << board2->white_queens.at(i); }
+  std::cout << std::endl << "black queens";
+  for (int i = 0 ; i < board2->black_queens.size(); i++) { std::cout << "  " << board2->black_queens.at(i); }
+  std::cout << std::endl << "white kings";
+  for (int i = 0 ; i < board2->white_kings.size(); i++) { std::cout << "  " << board2->white_kings.at(i); }
+  std::cout << std::endl << "black kings";
+  for (int i = 0 ; i < board2->black_kings.size(); i++) { std::cout << "  " << board2->black_kings.at(i); }
 }
 
 int main() {
   flatbuffers::FlatBufferBuilder builder(1024);
   // black bishops
-  ZocoloChess::Coord black_bishops_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::C, 7), ZocoloChess::Coord(ChessGame::Collumn::F, 7) };
+  Serializer::Coord black_bishops_ar[] = { Serializer::Coord(Collumn::C, 7), Serializer::Coord(Collumn::F, 7) };
   auto black_bishops = builder.CreateVectorOfStructs(black_bishops_ar, 2);
   // black knights
-  ZocoloChess::Coord black_knights_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::B, 7), ZocoloChess::Coord(ChessGame::Collumn::G, 7) };
+  Serializer::Coord black_knights_ar[] = { Serializer::Coord(Collumn::B, 7), Serializer::Coord(Collumn::G, 7) };
   auto black_knights = builder.CreateVectorOfStructs(black_knights_ar, 2);
   // black rooks
-  ZocoloChess::Coord black_rooks_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::A, 7), ZocoloChess::Coord(ChessGame::Collumn::H, 7) };
+  Serializer::Coord black_rooks_ar[] = { Serializer::Coord(Collumn::A, 7), Serializer::Coord(Collumn::H, 7) };
   auto black_rooks = builder.CreateVectorOfStructs(black_rooks_ar, 2);
   // black king
-  ZocoloChess::Coord black_kings_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::D, 7)};
+  Serializer::Coord black_kings_ar[] = { Serializer::Coord(Collumn::D, 7)};
   auto black_kings = builder.CreateVectorOfStructs(black_kings_ar, 1);
   // black queens
-  ZocoloChess::Coord black_queens_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::E, 7)};
+  Serializer::Coord black_queens_ar[] = { Serializer::Coord(Collumn::E, 7)};
   auto black_queens = builder.CreateVectorOfStructs(black_queens_ar, 1);
   // black pawns
-  ZocoloChess::Coord black_pawns_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::A, 6), ZocoloChess::Coord(ChessGame::Collumn::B, 6), ZocoloChess::Coord(ChessGame::Collumn::C, 6), ZocoloChess::Coord(ChessGame::Collumn::D, 6), ZocoloChess::Coord(ChessGame::Collumn::E, 6), ZocoloChess::Coord(ChessGame::Collumn::F, 6), ZocoloChess::Coord(ChessGame::Collumn::G, 6), ZocoloChess::Coord(ChessGame::Collumn::H, 6) };
+  Serializer::Coord black_pawns_ar[] = { Serializer::Coord(Collumn::A, 6), Serializer::Coord(Collumn::B, 6), Serializer::Coord(Collumn::C, 6), Serializer::Coord(Collumn::D, 6), Serializer::Coord(Collumn::E, 6), Serializer::Coord(Collumn::F, 6), Serializer::Coord(Collumn::G, 6), Serializer::Coord(Collumn::H, 6) };
   auto black_pawns = builder.CreateVectorOfStructs(black_pawns_ar, 8);
   // white bishops
-  ZocoloChess::Coord white_bishops_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::C, 0), ZocoloChess::Coord(ChessGame::Collumn::F, 0) };
+  Serializer::Coord white_bishops_ar[] = { Serializer::Coord(Collumn::C, 0), Serializer::Coord(Collumn::F, 0) };
   auto white_bishops = builder.CreateVectorOfStructs(white_bishops_ar, 2);
   // white knights
-  ZocoloChess::Coord white_knights_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::B, 0), ZocoloChess::Coord(ChessGame::Collumn::G, 0) };
+  Serializer::Coord white_knights_ar[] = { Serializer::Coord(Collumn::B, 0), Serializer::Coord(Collumn::G, 0) };
   auto white_knights = builder.CreateVectorOfStructs(white_knights_ar, 2);
   // white rooks
-  ZocoloChess::Coord white_rooks_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::A, 0), ZocoloChess::Coord(ChessGame::Collumn::H, 0) };
+  Serializer::Coord white_rooks_ar[] = { Serializer::Coord(Collumn::A, 0), Serializer::Coord(Collumn::H, 0) };
   auto white_rooks = builder.CreateVectorOfStructs(white_rooks_ar, 2);
   // white king
-  ZocoloChess::Coord white_kings_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::E, 0)};
+  Serializer::Coord white_kings_ar[] = { Serializer::Coord(Collumn::E, 0)};
   auto white_kings = builder.CreateVectorOfStructs(white_kings_ar, 0);
   // white queens
-  ZocoloChess::Coord white_queens_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::D, 0)};
+  Serializer::Coord white_queens_ar[] = { Serializer::Coord(Collumn::D, 0)};
   auto white_queens = builder.CreateVectorOfStructs(white_queens_ar, 0);
   // white pawns
-  ZocoloChess::Coord white_pawns_ar[] = { ZocoloChess::Coord(ChessGame::Collumn::A, 1), ZocoloChess::Coord(ChessGame::Collumn::B, 1), ZocoloChess::Coord(ChessGame::Collumn::C, 1), ZocoloChess::Coord(ChessGame::Collumn::D, 1), ZocoloChess::Coord(ChessGame::Collumn::E, 1), ZocoloChess::Coord(ChessGame::Collumn::F, 1), ZocoloChess::Coord(ChessGame::Collumn::G, 1), ZocoloChess::Coord(ChessGame::Collumn::H, 1) };
+  Serializer::Coord white_pawns_ar[] = { Serializer::Coord(Collumn::A, 1), Serializer::Coord(Collumn::B, 1), Serializer::Coord(Collumn::C, 1), Serializer::Coord(Collumn::D, 1), Serializer::Coord(Collumn::E, 1), Serializer::Coord(Collumn::F, 1), Serializer::Coord(Collumn::G, 1), Serializer::Coord(Collumn::H, 1) };
   auto white_pawns = builder.CreateVectorOfStructs(white_pawns_ar, 8);
   // moves
-  ZocoloChess::Move moves_ar[] = {};
+  Serializer::Move moves_ar[] = {};
   auto moves = builder.CreateVectorOfStructs(moves_ar, 0);
   // Serialize the board
   auto board = CreateChessBoard(builder,
