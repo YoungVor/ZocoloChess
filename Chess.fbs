@@ -1,0 +1,53 @@
+// Example IDL file for our monster's schema.
+
+// Optimizing for data I/O
+
+native_include "ChessGame.h";
+namespace ZocoloChess;
+
+enum Color:byte { White = 0, Black = 1 }
+enum PieceType:byte {
+	Pawn = 0,
+	Bishop,
+	Knight,
+    Rook,
+	Queen,
+	King = 5
+}
+
+// 0 - 7 maps to A - H
+// 15/15 means the piece is taken. In some cases it might be faster to update in place
+struct Coord(native_type:"ChessGame::coordinate") {
+    row:byte;
+    column:byte;
+}
+
+// TODO: if i want this to be mutable, should be a table.  Structs shouldn't change
+// copying the Piece upon a move is probably preferable to changing in place.
+// On second thought, don't really need this struct at all. Embedding type and color into board is more space efficient
+// On third thought, you need to represent history with a data structure like this.
+struct Move {
+    type:PieceType; // 8bit
+    move:Coord; // 16bit
+}
+
+
+//TODO: add player names (string)
+// vector sizes can grow or shrink
+table ChessBoard {
+    white_pawns:[Coord];
+    black_pawns:[Coord];
+    white_bishops:[Coord];
+    black_bishops:[Coord];
+    white_knights:[Coord];
+    black_knights:[Coord];
+    white_rooks:[Coord];
+    black_rooks:[Coord];
+    white_queens:[Coord];
+    black_queens:[Coord];
+    white_kings:[Coord];
+    black_kings:[Coord];
+    moves:[Move];
+}
+
+root_type ChessBoard;

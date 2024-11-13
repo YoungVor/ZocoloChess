@@ -1,0 +1,15 @@
+
+Build instructions
+
+Build schema
+cd ~/Projects/ZocoloBuild
+# We want mutable because the common case will be updating one piece and adding one move 
+flatc -c Chess.fbs --gen-mutable
+
+For IDE:
+cd ~/Projects/ZocoloBuild
+cmake -S ../Zocolo -B ../ZocoloBuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=1
+rm ../Zocolo/compile_commands.json && ln -s ../ZocoloBuild/compile_commands.json ../Zocolo/compile_commands.json
+
+Current stage:
+https://flatbuffers.dev/flatbuffers_guide_use_cpp.html
