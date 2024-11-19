@@ -1,0 +1,94 @@
+#ifndef CHESSUI_H_
+#define CHESSUI_H_
+
+#include "ChessGame.h"
+#include "Chess_generated.h"
+#include <map>
+
+
+namespace ZocoloChess {
+
+enum ChessGameState {
+  st_init,
+  st_menu,
+  st_setup,
+  st_play,
+  st_selected,
+  st_exit,
+};
+
+enum ChessResponseType {
+  load_game_rt,
+  new_game_rt,
+  color_white_rt,
+  color_black_rt,
+  color_random_rt,
+  color_all_rt,
+  cancel_rt,
+  yes_rt,
+  no_rt,
+  concede_rt,
+  select_piece_rt,
+  move_selected_rt,
+  move_rt,
+  print_rt,
+  error_rt,
+  empty_rt,
+  exit_rt,
+  // needed for promo
+  queen_rt,
+  rook_rt,
+  knight_rt,
+  bishop_rt,
+};
+
+
+
+class SimpleChessUI {
+  // chessBoard updates the data
+  // client provides
+  //    API for user to talk to chessboard
+  //    API for user to load chessboard
+  //    API for user to write chessboard state back
+  std::unique_ptr<ChessGame> game;
+  std::string prompt;
+  // specific state logic
+  // game logic
+  uid_t cid;
+  Color player_color;
+  ChessGameState state;
+  coordinate selectedPiece;
+
+  // State machine
+  Error run_menu();
+  Error run_setup();
+  Error run_play();
+  Error run_move_selected();
+
+
+  Error setup();
+  Error load_board(uid_t id);
+  Error create_board();
+  Error save_board(uid_t id);
+  Error play_game(); // requires game to be set
+
+  ChessResponseType parse_user_command(const std::vector<ChessResponseType> &options,
+                                       coordinate *coord = nullptr,
+                                       coordinate *secondCoord = nullptr);
+  ChessResponseType parse_coordinate_command(const std::vector<ChessResponseType> &options,
+                                             std::vector<std::string> &words,
+                                             coordinate *coord = nullptr,
+                                             coordinate *secondCoord = nullptr);
+  Error parse_coordinate(std::string input, coordinate *coord);
+
+  Error move_piece(coordinate coord, coordinate destCoord);
+
+public:
+  int main_loop();
+
+};
+
+}
+
+
+#endif // CHESSUI_H_
