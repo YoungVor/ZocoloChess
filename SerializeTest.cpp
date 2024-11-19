@@ -1,7 +1,7 @@
 #include "ChessGame.h"
 #include "Chess_generated.h"
 
-#include <__format/format_functions.h>
+//#include <__format/format_functions.h>
 #include <_types/_uint8_t.h>
 #include <ios>
 #include <memory>
@@ -14,6 +14,14 @@
 
 using namespace ZocoloChess;
 using std::to_string;
+
+// TODO: add this to a utils file
+void log(LogLevel level, std::string out) {
+  if (log_level >= level) {
+    std::cout << out;
+  }
+};
+
 
 std::ostream& operator<< (std::ostream& os, const Collumn &col)
 {
@@ -31,6 +39,17 @@ std::ostream& operator<< (std::ostream& os, const Collumn &col)
   return os;
 };
 
+std::ostream& operator<< (std::ostream& os, const Color &co)
+{
+  switch (co) {
+    case(White): os << "White"; break;
+    case(Black): os << "Black"; break;
+    case(All): os << "None";  break;
+  };
+  return os;
+};
+
+
 std::ostream& operator<<(std::ostream& os, const coordinate &c) {
   return os << c.collumn << (int)c.row;
 }
@@ -38,6 +57,12 @@ std::ostream& operator<<(std::ostream& os, const coordinate &c) {
 std::string to_string(const Collumn &col) {
   std::stringstream ss;
   ss << col;
+  return ss.str();
+}
+
+std::string to_string(const Color &co) {
+  std::stringstream ss;
+  ss << co;
   return ss.str();
 }
 
@@ -64,7 +89,7 @@ void readBoard(char *buffer_ptr) {
   auto black_rooks = board->black_rooks();
   auto moves = board->moves();
   auto white_pawns = board->white_pawns();
-  std::string out = std::format("white pawns size:{} ", white_pawns->size());
+  /*std::string out = std::format("white pawns size:{} ", white_pawns->size());
   for (int i = 0; i < white_pawns->size(); i++) {
     auto pawn_ptr = white_pawns->Get(i);
     out += std::format("p{}:{}{},", i, pawn_ptr->column(), pawn_ptr->row());
@@ -103,12 +128,10 @@ void readBoard(char *buffer_ptr) {
     auto king_ptr = black_kings1->Get(i);
     out += std::format("K{}:{}{},", i, king_ptr->column(), king_ptr->row());
   }
-
-
+*/
   auto board2 = Serializer::UnPackChessBoard(buffer_ptr);
   auto &black_kings = board2->black_kings;
-  std::cout << out << std::endl;
-  std::cout << std::format("black kings (object api) size:{} ", black_kings.size());
+  //std::cout << std::format("black kings (object api) size:{} ", black_kings.size());
   for (int i = 0; i < black_kings.size(); i++) {
     coordinate black_king = black_kings.at(i);
     std::cout << "K:" << black_kings.at(i);
@@ -148,8 +171,7 @@ void readBoard(char *buffer_ptr) {
   for (int i = 0 ; i < board2->black_kings.size(); i++) { std::cout << "  " << board2->black_kings.at(i); }
 }
 
-int main() {
-  flatbuffers::FlatBufferBuilder builder(1024);
+std::shared_ptr<char> CreateNewChessGameData(flatbuffers::FlatBufferBuilder64 &builder) {
   // black bishops
   Serializer::Coord black_bishops_ar[] = { Serializer::Coord(Collumn::C, 7), Serializer::Coord(Collumn::F, 7) };
   auto black_bishops = builder.CreateVectorOfStructs(black_bishops_ar, 2);
@@ -206,17 +228,21 @@ int main() {
                                 moves);
   builder.Finish(board);
   std::cout << "finished serializing board" << std::endl;
+  return std::make_shared<char>((char*)builder.GetBufferPointer());
+}
 
-  // Test reading
-  char *buffer_ptr = (char*)builder.GetBufferPointer();
-  readBoard(buffer_ptr);
+int main() {
+   // Test reading
+   flatbuffers::FlatBufferBuilder builder(1024);
+   std::shared_ptr<char> buffer_ptr = CreateNewChessGameData(&builder);
+  readBoard(buffer_ptr.get());
 
   // TODO: test a few moves
 
   // Test Serialize
   std::ofstream outfile;
   outfile.open("chessboard_test.zo", std::ios_base::binary | std::ios_base::out ); // clears contents first
-  outfile.write(buffer_ptr, builder.GetSize());
+  outfile.write(buffer_ptr.get(), builder.GetSize());
   outfile.close();
   std::cout << "Seriazed Chessboard" << std::endl;
 

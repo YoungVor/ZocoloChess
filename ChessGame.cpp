@@ -1,101 +1,144 @@
 #include "ChessGame.h"
 #include "Chess_generated.h"
-#include <__format/format_functions.h>
+//#include <format>
 #include <_types/_uint8_t.h>
 #include <memory>
 #include <string>
 #include <sys/_types/_int32_t.h>
 #include <iostream>
+#include <vector>
 
-using namespace Zocolo::Chess;
+using namespace ZocoloChess;
 
 
-void readBoard(uint8_t *buffer_ptr) {
-  auto board = GetChessBoard(buffer_ptr);
-  auto black_bishops = board->black_bishops();
-  auto moves = board->moves();
-  auto white_pawns = board->white_pawns();
-  std::string out = std::format("white pawns size:{} ", white_pawns->size());
-  for (int i = 0; i < white_pawns->size(); i++) {
-    auto pawn_ptr = white_pawns->Get(i);
-    out += std::format("p{}:{}{},", i, pawn_ptr->column(), pawn_ptr->row());
-  }
-  std::cout << out << std::endl;
-  out = std::format("white pawns size:{} ", white_pawns->size());
-  auto black_rooks = board->black_rooks();
-  for (int i = 0; i < black_rooks->size(); i++) {
-    auto rook_ptr = black_rooks->Get(i);
-    out += std::format("p{}:{}{},", i, rook_ptr->column(), rook_ptr->row());
-  }
-
-  std::cout << out << std::endl;
-  out = std::format("moves size:{}, ", moves->size());
-  for (int i = 0; i < moves->size(); i++) {
-    auto move_ptr = moves->Get(i);
-    out += std::format("{}-->{}{}, ", (uint8_t)move_ptr->type(), move_ptr->move().column(), move_ptr->move().row());
-  }
-  std::cout << out << std::endl;
-  std::cout << std::format("black king:{}{}", board->black_king()->column(), board->black_king()->row()) << std::endl;
+ChessGame::ChessGame() {
+  //flatbuffers::FlatBufferBuilder builder(1024);
+  //board_data_ptr = CreateNewChessGameData(builder);
+  load_board_data();
 }
 
-int main() {
-  flatbuffers::FlatBufferBuilder builder(1024);
-  // black bishops
-  Coord black_bishops_ar[] = { Coord(Collumn::C, 8), Coord(Collumn::F, 8) };
-  auto black_bishops = builder.CreateVectorOfStructs(black_bishops_ar, 2);
-  // black knights
-  Coord black_knights_ar[] = { Coord(Collumn::B, 8), Coord(Collumn::G, 8) };
-  auto black_knights = builder.CreateVectorOfStructs(black_knights_ar, 2);
-  // black rooks
-  Coord black_rooks_ar[] = { Coord(Collumn::A, 8), Coord(Collumn::H, 8) };
-  auto black_rooks = builder.CreateVectorOfStructs(black_rooks_ar, 2);
-  // black king
-  auto black_king = Coord(Collumn::D, 8);
-  // black queens
-  Coord black_queens_ar[] = { Coord(Collumn::E, 8)};
-  auto black_queens = builder.CreateVectorOfStructs(black_queens_ar, 1);
-  // black pawns
-  Coord black_pawns_ar[] = { Coord(Collumn::A, 7), Coord(Collumn::B, 7), Coord(Collumn::C, 7), Coord(Collumn::D, 7), Coord(Collumn::E, 7), Coord(Collumn::F, 7), Coord(Collumn::G, 7), Coord(Collumn::H, 7) };
-  auto black_pawns = builder.CreateVectorOfStructs(black_pawns_ar, 8);
-  // white bishops
-  Coord white_bishops_ar[] = { Coord(Collumn::C, 1), Coord(Collumn::F, 1) };
-  auto white_bishops = builder.CreateVectorOfStructs(white_bishops_ar, 2);
-  // white knights
-  Coord white_knights_ar[] = { Coord(Collumn::B, 1), Coord(Collumn::G, 1) };
-  auto white_knights = builder.CreateVectorOfStructs(white_knights_ar, 2);
-  // white rooks
-  Coord white_rooks_ar[] = { Coord(Collumn::A, 1), Coord(Collumn::H, 1) };
-  auto white_rooks = builder.CreateVectorOfStructs(white_rooks_ar, 2);
-  // white king
-  auto white_king = Coord(Collumn::E, 1);
-  // white queens
-  Coord white_queens_ar[] = { Coord(Collumn::D, 1)};
-  auto white_queens = builder.CreateVectorOfStructs(white_queens_ar, 1);
-  // white pawns
-  Coord white_pawns_ar[] = { Coord(Collumn::A, 2), Coord(Collumn::B, 2), Coord(Collumn::C, 2), Coord(Collumn::D, 2), Coord(Collumn::E, 2), Coord(Collumn::F, 2), Coord(Collumn::G, 2), Coord(Collumn::H, 2) };
-  auto white_pawns = builder.CreateVectorOfStructs(white_pawns_ar, 8);
-  // moves
-  Move moves_ar[] = {};
-  auto moves = builder.CreateVectorOfStructs(moves_ar, 0);
-  // Serialize the board
-  auto board = CreateChessBoard(builder,
-                                white_pawns,
-                                black_pawns,
-                                white_bishops,
-                                black_bishops,
-                                white_knights,
-                                black_knights,
-                                white_rooks,
-                                black_rooks,
-                                white_queens,
-                                black_queens,
-                                &white_king,
-                                &black_king,
-                                moves);
-  builder.Finish(board);
-  std::cout << "finished serializing board" << std::endl;
-
-  // Test deserialization
-  uint8_t *buffer_ptr = builder.GetBufferPointer();
-  readBoard(buffer_ptr);
+void ChessGame::load_board_data() {
+  //board_data = Serializer::GetChessBoard(board_data_ptr.get());
 }
+
+Color ChessGame::playerTurn() {
+  return White;
+}
+
+std::string ChessGame::pretty_string() { return "...................."; }
+
+std::string ChessGame::state_string() {
+  std::stringstream ss;
+  switch(state) {
+  case Check:
+    ss << "Check! ";
+  case Turn:
+    ss << playerTurn() << "'s turn.";
+    return ss.str();
+  case Promotion:
+    return "Waiting for player to choose pawn promotion";
+  case Checkmate:
+  case Conceded:
+    ss << winningPlayer() << " wins" << (state == Checkmate ?
+                                         " by checkmate!" : "! Player conceded.");
+    return ss.str();
+  case Stalemate:
+    return "Game over: Stalemate.";
+  }
+}
+
+Error ChessGame::movePiece(coordinate pos, coordinate dest) {
+  // Check if
+  //Piece piece = boardArray[pos.collumn][pos.row];
+  // Check if valid move
+  Error isValid = isValidMove(pos, dest);
+  if (isValid != Error::valid) {
+    return isValid;
+  }
+
+  // update state
+
+  // check if piece is taken
+
+  // special case for castle
+
+  return isValid;
+}
+
+Error ChessGame::promotePawn(coordinate position, PieceType newPiece) {
+  return invalid_move;
+}
+
+Error ChessGame::playerConcedes(Color color) {
+  if (gameActive()) { // game's already over, can't concede
+    return invalid_move;
+  }
+  state = Conceded;
+  winner = (color == White) ? Black : White;
+  return valid;
+}
+
+Error ChessGame::isValidMove(coordinate pos, coordinate dest) {
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  // check if game is over, and that its current player's turn
+  if (!gameActive()) {
+    return Error::game_over;
+  }
+  if (playerTurn() != piece.color) {
+    return Error::not_players_turn;
+  }
+  if (piece.type == Empty) {
+    return Error::invalid_move;
+  }
+  // check if king is in check
+  if (piece.type != King &&
+      piece.color == White ? pieceUnderAttack(*whiteKing) : pieceUnderAttack(*blackKing)) {
+    return Error::king_in_check;
+  }
+  // get the possible moves
+  std::vector<coordinate> moves;
+  switch (piece.type) {
+  case Pawn: moves = possible_pawn_moves(pos,piece.color); break;
+  case Bishop: moves = possible_bishop_moves(pos,piece.color); break;
+  case Knight: moves = possible_knight_moves(pos,piece.color); break;
+  case Rook: moves = possible_rook_moves(pos,piece.color); break;
+  case Queen: moves = possible_queen_moves(pos,piece.color); break;
+  case King: moves = possible_king_moves(pos,piece.color); break;
+  default:  return Error::bad_state;
+  }
+  if (std::find(moves.begin(), moves.end(), dest) != moves.end()) {
+    return Error::valid;
+  } else {
+    return Error::invalid_move;
+  }
+}
+
+Piece ChessGame::selectSpace(coordinate coord) {
+  return boardArray[coord.collumn][coord.row];
+}
+std::vector<coordinate> ChessGame::possibleMoves(coordinate pos) {
+  auto piece = selectSpace(pos);
+  switch (piece.type) {
+  case Pawn: return possible_pawn_moves(pos,piece.color);
+  case Bishop: return possible_bishop_moves(pos,piece.color);
+  case Knight: return possible_knight_moves(pos,piece.color);
+  case Rook: return possible_rook_moves(pos,piece.color);
+  case Queen: return possible_queen_moves(pos,piece.color);
+  case King: return possible_king_moves(pos,piece.color);
+  default: {
+    //TRACE("no piece at position")
+    return std::vector<coordinate>();
+  }
+  }
+}
+
+std::vector<coordinate> ChessGame::possible_pawn_moves(coordinate pos, Color color) {
+  // get color and direction
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  return std::vector<coordinate>();
+}
+std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
+std::vector<coordinate> ChessGame::possible_queen_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
+std::vector<coordinate> ChessGame::possible_rook_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
+std::vector<coordinate> ChessGame::possible_bishop_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
+std::vector<coordinate> ChessGame::possible_knight_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }

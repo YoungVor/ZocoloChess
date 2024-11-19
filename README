@@ -2,7 +2,7 @@
 Build instructions
 
 Build schema
-cd ~/Projects/ZocoloBuild
+cd ~/Projects/Zocolo
 # We want mutable because the common case will be updating one piece and adding one move 
 flatc -c Chess.fbs --gen-mutable
 
@@ -13,3 +13,9 @@ rm ../Zocolo/compile_commands.json && ln -s ../ZocoloBuild/compile_commands.json
 
 Current stage:
 https://flatbuffers.dev/flatbuffers_guide_use_cpp.html
+
+
+11/14:
+* Default board data and class construction
+* Define chess client and simple API
+* Update move schema to be 2 coordinates
