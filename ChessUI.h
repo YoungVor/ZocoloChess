@@ -3,6 +3,8 @@
 
 #include "ChessGame.h"
 #include "Chess_generated.h"
+#include "ClientInterface.h"
+#include "FileSystemClient.h"
 #include <map>
 
 
@@ -23,7 +25,7 @@ enum ChessResponseType {
   color_white_rt,
   color_black_rt,
   color_random_rt,
-  color_all_rt,
+  color_observer_rt,
   cancel_rt,
   yes_rt,
   no_rt,
@@ -51,7 +53,6 @@ class SimpleChessUI {
   //    API for user to load chessboard
   //    API for user to write chessboard state back
   std::unique_ptr<ChessGame> game;
-  std::string prompt;
   // specific state logic
   // game logic
   uid_t cid;
@@ -85,6 +86,7 @@ class SimpleChessUI {
 
 public:
   int main_loop();
+  SimpleChessUI() : state(st_init) {}
 
 };
 

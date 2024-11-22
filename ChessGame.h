@@ -10,7 +10,9 @@
 #include <iostream>
 #include <sys/_types/_int8_t.h>
 #include <map>
+#include <sys/_types/_uid_t.h>
 #include <unistd.h>
+#include "ClientInterface.h"
 // #include <format>
 
 //#include "Chess_generated.h"
@@ -19,32 +21,31 @@
 namespace ZocoloChess {
 
 #define BOARD_LENGTH 8
-
-enum LogLevel { INFO=0, TRACE, DEBUG=2,  };
-
-static LogLevel log_level = DEBUG;
-
-// TODO: add this to a utils file
-void log(LogLevel level, std::string out);
-
-#define LOG(out) log(LogLevel::DEBUG, (out))
-#define TRACE(out) log(LogLevel::DEBUG, (out))
-#define DEBUG(out) log(LogLevel::DEBUG, (out))
-#define CONTAINS(list, value) (std::find((list).begin(), (list).end(), (value)) != (list).end())
-
 // enum class Collumn : int8_t {
 // can't use strong typed enum without specifying the type where I use it
-enum Collumn { A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, X=15 };
-  enum Color { White = 0, Black = 1, All = 2 };
-enum PieceType {
-  Pawn = 0,
-  Bishop,
-  Knight,
-  Rook,
-  Queen,
-  King = 5,
-  Empty = 15,
+ enum Collumn { A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, X=15 };
+ enum Color { White = 0, Black = 1, Observer = 2, None = 3 };
+
+ enum PieceType {
+   Pawn = 0,
+   Bishop,
+   Knight,
+   Rook,
+   Queen,
+   King = 5,
+   Empty = 15,
+ };
+
+const std::map<PieceType, std::string> PieceToDisplay  {
+  {Pawn,  "P"},
+  {Bishop,  "B"},
+  {Knight, "N"},
+  {Rook, "R"},
+  {Queen, "Q"},
+  {King, "K"},
+  {Empty, "empty"},
 };
+
 
 enum GameState {
   Turn,
@@ -87,15 +88,20 @@ struct Piece {
   coordinate position;
   Color color;
   PieceType type;
-  Piece() :position(), color(All), type(Empty) {}
-  Piece(coordinate pos) : position(pos), color(All), type(Empty) {}
-  Piece(coordinate pos, Color co, PieceType type) : position(pos), color(All), type(Empty) {}
+  Piece() :position(), color(None), type(Empty) {}
+  Piece(coordinate pos) : position(pos), color(None), type(Empty) {}
+  Piece(coordinate pos, Color co, PieceType ty) : position(pos), color(co), type(ty) {}
+  bool isEmpty() {
+    return (color == None) && (type == Empty);
+  }
+  std::string pretty_string();
 };
 
 
 class ChessGame {
 private:
   std::shared_ptr<char> board_data_ptr;
+  std::unique_ptr<GameClientIF<ChessGame>> client;
   //const Serializer::ChessBoard *board_data;
   Piece boardArray[8][8];
   Piece *whiteKing;
@@ -103,14 +109,14 @@ private:
   bool whiteKingMoved;
   bool blackKingMoved;
   GameState state;
-  Color winner = All;
+  Color winner = None;
   //cache
  std::vector<coordinate> spaces_defended_white;
  std::vector<coordinate> spaces_defended_black;
   // do I need a reference to the buffer?
  public:
-  ChessGame();
-  ChessGame(ChessGame &other);
+  ChessGame(GameClientIF<ChessGame> *cl);
+  void init_new_board();
 
   // convenience functions
   Color playerTurn();
@@ -130,13 +136,12 @@ private:
   bool pieceUnderAttack(Piece &piece) {return true;} // TODO: figure this out.
  // One possible way - convenience function to determine if any piece is under attack
 
-  std::string pretty_string();
+  std::string pretty_string(Color orientation);
   std::string state_string();
  private:
   Piece findPiece(coordinate position) {
     return boardArray[position.collumn][position.row];
   }
-  void updateBoard();
   std::vector<coordinate> spaces_defended(Color player);
   std::vector<coordinate> possible_pawn_moves(coordinate pos, Color color);
   std::vector<coordinate> possible_king_moves(coordinate pos, Color color);
@@ -144,7 +149,9 @@ private:
   std::vector<coordinate> possible_rook_moves(coordinate pos, Color color);
   std::vector<coordinate> possible_bishop_moves(coordinate pos, Color color);
   std::vector<coordinate> possible_knight_moves(coordinate pos, Color color);
-  void load_board_data();
+
+  void update_board();
+  void load_board(uid_t id);
   bool validate_board_state(); // check that board_data and board are in sync
 };
 
@@ -163,17 +170,6 @@ namespace flatbuffers {
 } // namespace flatbuffers
 
 
-// overloads to make printing and streaming easy
- std::ostream &operator<<(std::ostream &os, const ZocoloChess::Collumn &col);
-std::ostream &operator<<(std::ostream &os, const ZocoloChess::Color &co);
-
-std::ostream &operator<<(std::ostream &os, const ZocoloChess::coordinate &c);
-std::ostream &operator<<(std::ostream &os, const ZocoloChess::PieceType &c);
-
-std::string to_string(const ZocoloChess::Collumn &col);
-std::string to_string(const ZocoloChess::Color &co);
-std::string to_string(const ZocoloChess::coordinate &c);
-std::string to_string(const ZocoloChess::PieceType &c);
 
 /*template<> struct std::formatter<ZocoloChess::coordinate> {
    constexpr auto parse(std::format_parse_context& ctx) { return ctx.begin(); }

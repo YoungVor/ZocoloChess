@@ -1,31 +1,143 @@
 #include "ChessGame.h"
 #include "Chess_generated.h"
-//#include <format>
+#include "utils.h"
+#include <format>
 #include <_types/_uint8_t.h>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <sys/_types/_int32_t.h>
 #include <iostream>
+#include <sys/_types/_uid_t.h>
 #include <vector>
 
 using namespace ZocoloChess;
 
+std::string Piece::pretty_string() {
+  DEBUG(std::format("piece string: empty:{} type:{} color: {}", isEmpty(), PieceToDisplay.at(type), (int)color));
 
-ChessGame::ChessGame() {
-  //flatbuffers::FlatBufferBuilder builder(1024);
-  //board_data_ptr = CreateNewChessGameData(builder);
-  load_board_data();
+    std::stringstream ss;
+    if (isEmpty()) { return ""; }
+    ss << "{ " << (color == White ? "W" : "B") << " " << PieceToDisplay.at(type)
+       << " }";
+    return ss.str();
 }
 
-void ChessGame::load_board_data() {
+ChessGame::ChessGame(GameClientIF<ChessGame> *cl) {
+  client.reset(cl);
+  init_new_board();
+}
+
+void ChessGame::load_board(uid_t id) {
   //board_data = Serializer::GetChessBoard(board_data_ptr.get());
 }
 
-Color ChessGame::playerTurn() {
-  return White;
+void ChessGame::init_new_board() {
+  DEBUG("init board");
+  auto piece = Piece(coordinate(A,0), White, Rook);
+   std::stringstream ss;
+  boardArray[A][0] = piece;
+  ss << "piece at A,0: " << boardArray[A][0].pretty_string() << std::endl;
+  ss << "assigned at A,0: " << piece.pretty_string() << std::endl;
+
+
+  boardArray[H][0] = Piece(coordinate(H,0), White, Rook);
+  boardArray[B][0] = Piece(coordinate(B,0), White, Bishop);
+  boardArray[G][0] = Piece(coordinate(G,0), White, Bishop);
+  boardArray[C][0] = Piece(coordinate(C,0), White, Knight);
+  boardArray[F][0] = Piece(coordinate(F,0), White, Knight);
+  boardArray[E][0] = Piece(coordinate(E,0), White, King);
+  boardArray[D][0] = Piece(coordinate(D,0), White, Queen);
+
+  boardArray[A][7] = Piece(coordinate(A,7), Black, Rook);
+  boardArray[H][7] = Piece(coordinate(H,7), Black, Rook);
+  boardArray[B][7] = Piece(coordinate(B,7), Black, Bishop);
+  boardArray[G][7] = Piece(coordinate(G,7), Black, Bishop);
+  boardArray[C][7] = Piece(coordinate(C,7), Black, Knight);
+  boardArray[F][7] = Piece(coordinate(F,7), Black, Knight);
+  boardArray[D][7] = Piece(coordinate(D,7), Black, King);
+  boardArray[E][7] = Piece(coordinate(E,7), Black, Queen);
+
+  for (int c = A; c < BOARD_LENGTH; c++) {
+    boardArray[c][1] = Piece(coordinate(c,1), White, Pawn);
+    boardArray[c][6] = Piece(coordinate(c,6), Black, Pawn);
+    for (int r = 2; r < BOARD_LENGTH-2; r++) {
+      boardArray[c][r] = Piece(coordinate(c,r)); // Empty
+    }
+  }
+  ss << "piece at G,6: " << boardArray[G][6].pretty_string() << std::endl;
+  ss << "piece at A,5: " << boardArray[A][5].pretty_string() << std::endl;
+  ss << "piece at C,7: " << boardArray[C][7].pretty_string() << std::endl;
+  DEBUG(ss.str());
+
+  whiteKing = &boardArray[D][0];
+  blackKing = &boardArray[E][7];
+
+  state = Turn;
+  winner = None;
+  whiteKingMoved = false;
+  blackKingMoved = false;
 }
 
-std::string ChessGame::pretty_string() { return "...................."; }
+Color ChessGame::playerTurn() { return White; }
+
+  #define square_length 16
+#define square_height 4
+#define board_length = 16 * 8
+std::string ChessGame::pretty_string(Color orientation) {
+  std::stringstream ss;
+  std::stringstream tmpSS;
+  if (orientation != Black) { orientation = White; }
+  Color firstSqColor = orientation;
+  Color curSquare = firstSqColor;
+  for (int r = 0; r < BOARD_LENGTH; r++) {
+    int rowIndex = (playerTurn() == Black) ? r : BOARD_LENGTH - r - 1;
+    // Top Boarder
+    ss << "   " << std::string(square_length*BOARD_LENGTH+1, '-') << std::endl;
+    // Top
+    tmpSS << "   "; // left boarder
+    for (int c = A; c < BOARD_LENGTH; c++) {
+      tmpSS << "|" << std::string(15, (curSquare == White) ? ' ' : '.');
+      curSquare = (curSquare == White) ? Black : White;
+    }
+    tmpSS << "|" << std::endl;
+    ss << tmpSS.str() << tmpSS.str();
+    tmpSS.str("");
+    tmpSS.clear();
+    // Middle (state)
+    ss << " " << rowIndex << " ";
+    for (int c = A; c < BOARD_LENGTH; c++) {
+      char fill =  (curSquare == White) ? ' ' : '.';
+      if (boardArray[c][r].isEmpty()) {
+        ss << "|" << std::string(15, fill);
+      } else {
+        ss << "|" << std::string(4, fill) << boardArray[(Collumn)c][rowIndex].pretty_string() << std::string(4, fill);
+      }
+      curSquare = (curSquare == White) ? Black : White;
+    }
+    ss << "|" << std::endl;
+    // Bottom
+    tmpSS << "   "; // left boarder
+    for (int c = A; c < BOARD_LENGTH; c++) {
+      tmpSS << "|" << std::string(15, (curSquare == White) ? ' ' : '.');
+      curSquare = (curSquare == White) ? Black : White;
+    }
+    tmpSS << "|" << std::endl;
+    ss << tmpSS.str() << tmpSS.str();
+    tmpSS.str("");
+    tmpSS.clear();
+    // End of Row, switch color
+    curSquare = (curSquare == White) ? Black : White;
+  }
+  // Bottom Boarder
+  ss << "   " << std::string(square_length*BOARD_LENGTH+1, '-') << std::endl;
+  ss << "   "; // left boarder
+  for (int c = A; c < BOARD_LENGTH; c++) {
+    ss << std::string(8, ' ') << (Collumn) c << std::string(7, ' ');
+  }
+
+  return ss.str();
+}
 
 std::string ChessGame::state_string() {
   std::stringstream ss;

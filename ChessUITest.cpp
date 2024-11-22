@@ -1,6 +1,6 @@
 #include "ChessUI.h"
 
 int main() {
-  ZocoloChess::SimpleChessUI chessIF;
-  return chessIF.main_loop();
+  ZocoloChess::SimpleChessUI chessUI;
+  return chessUI.main_loop();
 }

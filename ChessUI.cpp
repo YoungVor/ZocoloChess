@@ -1,5 +1,8 @@
 #include "ChessUI.h"
 #include "ChessGame.h"
+#include "utils.h"
+#include "ClientInterface.h"
+#include "FileSystemClient.h"
 #include <cassert>
 #include <memory>
 #include <ostream>
@@ -44,11 +47,11 @@ using namespace ZocoloChess;
 
 const std::map<std::string, ChessResponseType> ResponseMap{
     {"l", load_game_rt},    {"load", load_game_rt},
-    {"n", load_game_rt},    {"new", load_game_rt},
+    {"n", new_game_rt},    {"new", new_game_rt},
     {"w", color_white_rt},  {"white", color_white_rt},
     {"b", color_black_rt},  {"black", color_black_rt},
     {"m", color_random_rt}, {"random", color_random_rt},
-    {"a", color_all_rt},    {"all", color_all_rt},
+    {"o", color_observer_rt},    {"observer", color_observer_rt},
     {"d", concede_rt},      {"concede", concede_rt},
     {"c", cancel_rt},       {"cancel", cancel_rt},
     {"y", yes_rt},          {"yes", yes_rt},
@@ -90,7 +93,6 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
                                                           std::vector<std::string> &words,
                                                           coordinate *coord,
                                                           coordinate *secondCoord) {
-  assert(coord != nullptr);
   // parse first coord for piece selection or move selected
   if (!((CONTAINS(options, select_piece_rt) ||
        CONTAINS(options, move_selected_rt) ||
@@ -98,6 +100,7 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
         words.size() <= 2)) {
     return error_rt;
   }
+  assert(coord != nullptr);
   if (words.front().size() == 2) {
     parse_coordinate(words.front(), coord);
     if (words.size() == 1) {
@@ -127,16 +130,29 @@ ChessResponseType SimpleChessUI::parse_user_command(const std::vector<ChessRespo
                                                     coordinate *coord,
                                                     coordinate *secondCoord)
 {
-  std::string word;
+  DEBUG("parse_user_command");
+  std::string input;
   std::vector<std::string> words;
-  while (std::getline(std::cin, word, ' ')) {
-    if (!word.empty()) {
-      words.push_back(word);
-    }
+  std::getline(std::cin, input);
+  int eow, eoLastWord = 0;
+  if (input.empty()) {
+    return empty_rt;
   }
+  // parse multiple words
+  while (eoLastWord < input.size()) {
+    eow = input.find(" ", eoLastWord);
+    if (eow == std::string::npos) { break; }
+    if (eow != eoLastWord) { // don't put empty words (multiple spaces)
+      words.push_back(input.substr(eoLastWord, eow));
+    }
+    eoLastWord = eow + 1; // skip next space
+  }
+  words.push_back(input.substr(eoLastWord, input.size()));
+
+  DEBUG(std::format("parsed {} words", words.size()));
   //DEBUG(std::format("input length",))
   if (words.empty()) {
-    return empty_rt;
+    assert(false);
   }
   auto resp = ResponseMap.find(words.front());
   if (resp != ResponseMap.end() &&
@@ -155,12 +171,13 @@ Error SimpleChessUI::run_menu() {
   std::cout << "Options:" << std::endl;
   std::cout << "  [l]/[load] game" << std::endl;
   std::cout << "  [n]/[new] game" << std::endl;
-  std::cout << "  [q]/[quit] " << std::endl;
+  std::cout << "  [x]/[exit] " << std::endl;
   auto resp = parse_user_command({ new_game_rt, load_game_rt, exit_rt });
   switch(resp) {
   case new_game_rt:
-    game.reset(new ChessGame ());
+    game->init_new_board();
     state = st_setup;
+    return valid;
   case load_game_rt:
     std::cout << "Loading Game not supported yet.";
     return invalid_move;
@@ -175,7 +192,7 @@ Error SimpleChessUI::run_menu() {
 
 Error SimpleChessUI::run_setup() {
   std::cout << "Select a color: [w]hite, [b]lack, rando[m], [a]ll: ";
-  auto resp = parse_user_command({ color_white_rt, color_black_rt, color_all_rt, color_random_rt });
+  auto resp = parse_user_command({ color_white_rt, color_black_rt, color_observer_rt, color_random_rt });
   switch (resp) {
   case color_white_rt:
     player_color = White;
@@ -186,14 +203,14 @@ Error SimpleChessUI::run_setup() {
   case color_random_rt:
     player_color = random() % 2 ? White : Black;
     break;
-  case color_all_rt:
-    player_color = All;
+  case color_observer_rt:
+    player_color = Observer;
     break;
   default:
     return bad_state;
   }
   // transition to playing
-  std::cout << game->pretty_string() << std::endl;
+  std::cout << game->pretty_string(player_color) << std::endl;
   state = st_play;
   return valid;
 }
@@ -201,13 +218,13 @@ Error SimpleChessUI::run_setup() {
 Error SimpleChessUI::run_play() {
   std::cout << game->state_string() << std::endl;
   std::vector<ChessResponseType> options = { exit_rt, print_rt };
-  if (game->winningPlayer() != All) {
+  if (game->winningPlayer() != None) {
     std::cout << "  [p, print] the board )" << std::endl;
     std::cout << "  [x, exit]" << std::endl;
   } else {
-    std::cout << "  [c, concede] the game" << std::endl;
+    std::cout << "  [d, concede] the game" << std::endl;
     options.push_back(concede_rt);
-    if (player_color != All && player_color != game->playerTurn()) {
+    if (player_color != Observer && player_color != game->playerTurn()) {
         std::cout << "Waiting for other player." << std::endl;
     } else {
       // Player's turn
@@ -220,7 +237,7 @@ Error SimpleChessUI::run_play() {
   }
   coordinate coord;
   coordinate destCoord;
-  auto resp = parse_user_command(options);
+  auto resp = parse_user_command(options, &coord, &destCoord);
   switch (resp) {
   case select_piece_rt:
   case move_rt: {
@@ -236,7 +253,7 @@ Error SimpleChessUI::run_play() {
         break;
   }
   case concede_rt: {
-        if (player_color == All) {
+        if (player_color == Observer) {
             std::cout << "You are not a formal player. Only white or black player can concede." << std::endl;
         }
         std::cout << "Are you sure? [y]es/[n]o: " ;
@@ -248,7 +265,7 @@ Error SimpleChessUI::run_play() {
       }
   }
   case print_rt: {
-        std::cout << game->pretty_string() << std::endl;
+        std::cout << game->pretty_string(player_color) << std::endl;
         break;
   }
   case exit_rt: {
@@ -313,7 +330,7 @@ Error SimpleChessUI::move_piece(coordinate coord, coordinate destCoord) {
     } // fall through to valid move
   }
   case valid: {
-    std::cout << game->pretty_string();
+    std::cout << game->pretty_string(player_color);
     return valid;
   }
   case invalid_move: {
@@ -332,24 +349,29 @@ int SimpleChessUI::main_loop() {
   Error err;
   while(true) {
     switch (state) {
-    case st_init:
+    case st_init: {
       std::cout << "Welcome to Zocolo Chess Text Player!" << std::endl;
+      // TODO: choose clients.  For now, use filesystem client
+      // TODO: set user id
+      GameClientIF<ChessGame> *client = new ChessClientFS();
+      game.reset(new ChessGame(client));
       state = st_menu;
-    case st_menu:
+    }
+    case st_menu: {
       err = run_menu();
-      break;
-    case st_setup:
+      break; }
+    case st_setup: {
       err = run_setup();
-      break;
-    case st_play:
+      break; }
+    case st_play: {
       err = run_play();
-      break;
-    case st_selected:
+      break; }
+    case st_selected: {
       err = run_move_selected();
-      break;
-    case st_exit:
+      break; }
+    case st_exit: {
       std::cout << "See you next time!" << std::endl;
-      return 0;
+      return 0; }
     }
   }
 }

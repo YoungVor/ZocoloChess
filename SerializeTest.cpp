@@ -44,7 +44,7 @@ std::ostream& operator<< (std::ostream& os, const Color &co)
   switch (co) {
     case(White): os << "White"; break;
     case(Black): os << "Black"; break;
-    case(All): os << "None";  break;
+    case(None): os << "None";  break;
   };
   return os;
 };
@@ -171,7 +171,8 @@ void readBoard(char *buffer_ptr) {
   for (int i = 0 ; i < board2->black_kings.size(); i++) { std::cout << "  " << board2->black_kings.at(i); }
 }
 
-std::shared_ptr<char> CreateNewChessGameData(flatbuffers::FlatBufferBuilder64 &builder) {
+int main() {
+  flatbuffers::FlatBufferBuilder builder(1024);
   // black bishops
   Serializer::Coord black_bishops_ar[] = { Serializer::Coord(Collumn::C, 7), Serializer::Coord(Collumn::F, 7) };
   auto black_bishops = builder.CreateVectorOfStructs(black_bishops_ar, 2);
@@ -228,21 +229,17 @@ std::shared_ptr<char> CreateNewChessGameData(flatbuffers::FlatBufferBuilder64 &b
                                 moves);
   builder.Finish(board);
   std::cout << "finished serializing board" << std::endl;
-  return std::make_shared<char>((char*)builder.GetBufferPointer());
-}
 
-int main() {
-   // Test reading
-   flatbuffers::FlatBufferBuilder builder(1024);
-   std::shared_ptr<char> buffer_ptr = CreateNewChessGameData(&builder);
-  readBoard(buffer_ptr.get());
+  // Test reading
+  char *buffer_ptr = (char*)builder.GetBufferPointer();
+  readBoard(buffer_ptr);
 
   // TODO: test a few moves
 
   // Test Serialize
   std::ofstream outfile;
   outfile.open("chessboard_test.zo", std::ios_base::binary | std::ios_base::out ); // clears contents first
-  outfile.write(buffer_ptr.get(), builder.GetSize());
+  outfile.write(buffer_ptr, builder.GetSize());
   outfile.close();
   std::cout << "Seriazed Chessboard" << std::endl;
 
