@@ -1,6 +1,7 @@
 #include "ChessGame.h"
 #include "Chess_generated.h"
 #include "utils.h"
+#include <cassert>
 #include <format>
 #include <_types/_uint8_t.h>
 #include <memory>
@@ -42,20 +43,20 @@ void ChessGame::init_new_board() {
 
 
   boardArray[H][0] = Piece(coordinate(H,0), White, Rook);
-  boardArray[B][0] = Piece(coordinate(B,0), White, Bishop);
-  boardArray[G][0] = Piece(coordinate(G,0), White, Bishop);
-  boardArray[C][0] = Piece(coordinate(C,0), White, Knight);
-  boardArray[F][0] = Piece(coordinate(F,0), White, Knight);
+  boardArray[B][0] = Piece(coordinate(C,0), White, Bishop);
+  boardArray[G][0] = Piece(coordinate(F,0), White, Bishop);
+  boardArray[C][0] = Piece(coordinate(B,0), White, Knight);
+  boardArray[F][0] = Piece(coordinate(G,0), White, Knight);
   boardArray[E][0] = Piece(coordinate(E,0), White, King);
   boardArray[D][0] = Piece(coordinate(D,0), White, Queen);
 
   boardArray[A][7] = Piece(coordinate(A,7), Black, Rook);
   boardArray[H][7] = Piece(coordinate(H,7), Black, Rook);
-  boardArray[B][7] = Piece(coordinate(B,7), Black, Bishop);
-  boardArray[G][7] = Piece(coordinate(G,7), Black, Bishop);
+  boardArray[B][7] = Piece(coordinate(C,7), Black, Bishop);
+  boardArray[G][7] = Piece(coordinate(F,7), Black, Bishop);
   boardArray[C][7] = Piece(coordinate(C,7), Black, Knight);
-  boardArray[F][7] = Piece(coordinate(F,7), Black, Knight);
-  boardArray[D][7] = Piece(coordinate(D,7), Black, King);
+  boardArray[F][7] = Piece(coordinate(B,7), Black, Knight);
+  boardArray[D][7] = Piece(coordinate(G,7), Black, King);
   boardArray[E][7] = Piece(coordinate(E,7), Black, Queen);
 
   for (int c = A; c < BOARD_LENGTH; c++) {
@@ -77,6 +78,12 @@ void ChessGame::init_new_board() {
   winner = None;
   whiteKingMoved = false;
   blackKingMoved = false;
+  blackKingMoved = false;
+  whiteARookMoved = false;
+  whiteHRookMoved = false;
+  blackARookMoved = false;
+  blackHRookMoved = false;
+
 }
 
 Color ChessGame::playerTurn() { return White; }
@@ -210,12 +217,12 @@ Error ChessGame::isValidMove(coordinate pos, coordinate dest) {
   // get the possible moves
   std::vector<coordinate> moves;
   switch (piece.type) {
-  case Pawn: moves = possible_pawn_moves(pos,piece.color); break;
-  case Bishop: moves = possible_bishop_moves(pos,piece.color); break;
-  case Knight: moves = possible_knight_moves(pos,piece.color); break;
-  case Rook: moves = possible_rook_moves(pos,piece.color); break;
-  case Queen: moves = possible_queen_moves(pos,piece.color); break;
-  case King: moves = possible_king_moves(pos,piece.color); break;
+  case Pawn: moves = possible_pawn_moves(pos); break;
+  case Bishop: moves = possible_bishop_moves(pos); break;
+  case Knight: moves = possible_knight_moves(pos); break;
+  case Rook: moves = possible_rook_moves(pos); break;
+  case Queen: moves = possible_queen_moves(pos); break;
+  case King: moves = possible_king_moves(pos); break;
   default:  return Error::bad_state;
   }
   if (std::find(moves.begin(), moves.end(), dest) != moves.end()) {
@@ -225,18 +232,34 @@ Error ChessGame::isValidMove(coordinate pos, coordinate dest) {
   }
 }
 
-Piece ChessGame::selectSpace(coordinate coord) {
+Piece &ChessGame::selectSpace(coordinate coord) {
+  assert(coord.isValid());
   return boardArray[coord.collumn][coord.row];
 }
+
+bool ChessGame::validEmptySpace(coordinate coord) {
+  if (coord.isValid()) {
+    return selectSpace(coord).isEmpty();
+  }
+  return false;
+}
+
+bool ChessGame::validOccupiedSpaceByColor(coordinate coord, Color color) {
+  if (!coord.isValid()) {
+    return false;
+  }
+  return (!selectSpace(coord).isEmpty() && selectSpace(coord).color == color) ;
+}
+
 std::vector<coordinate> ChessGame::possibleMoves(coordinate pos) {
   auto piece = selectSpace(pos);
   switch (piece.type) {
-  case Pawn: return possible_pawn_moves(pos,piece.color);
-  case Bishop: return possible_bishop_moves(pos,piece.color);
-  case Knight: return possible_knight_moves(pos,piece.color);
-  case Rook: return possible_rook_moves(pos,piece.color);
-  case Queen: return possible_queen_moves(pos,piece.color);
-  case King: return possible_king_moves(pos,piece.color);
+  case Pawn: return possible_pawn_moves(pos);
+  case Bishop: return possible_bishop_moves(pos);
+  case Knight: return possible_knight_moves(pos);
+  case Rook: return possible_rook_moves(pos);
+  case Queen: return possible_queen_moves(pos);
+  case King: return possible_king_moves(pos);
   default: {
     //TRACE("no piece at position")
     return std::vector<coordinate>();
@@ -244,13 +267,195 @@ std::vector<coordinate> ChessGame::possibleMoves(coordinate pos) {
   }
 }
 
-std::vector<coordinate> ChessGame::possible_pawn_moves(coordinate pos, Color color) {
+std::vector<coordinate> ChessGame::possible_pawn_moves(coordinate pos) {
   // get color and direction
   Piece &piece = boardArray[pos.collumn][pos.row];
-  return std::vector<coordinate>();
+  std::vector<coordinate> retMoves;
+  if (piece.type != Pawn) {
+    return retMoves;
+  }
+  bool up = piece.color == White ? 1 : -1;
+  Color opponent = piece.color == White ? Black : White;
+  assert(piece.type == Pawn);
+  auto moveCoord = pos.incRow(up);
+  // collumn move
+  if (validEmptySpace(moveCoord)) {
+    retMoves.push_back(moveCoord);
+    moveCoord = moveCoord.incRow(up);
+    if (validEmptySpace(moveCoord)) {
+      retMoves.push_back(moveCoord);
+    }
+  }
+  // check diagonal attack
+  moveCoord = pos.incDiag(up, false);
+  if (validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  moveCoord = pos.incDiag(up, true);
+  if (validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  return retMoves;
 }
-std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
-std::vector<coordinate> ChessGame::possible_queen_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
-std::vector<coordinate> ChessGame::possible_rook_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
-std::vector<coordinate> ChessGame::possible_bishop_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
-std::vector<coordinate> ChessGame::possible_knight_moves(coordinate pos, Color color){ return std::vector<coordinate>(); }
+std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos) {
+    // get color and direction
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  bool checkCastle;
+  if (piece.color == White) {
+    checkCastle = !whiteKingMoved && (!whiteARookMoved || !whiteHRookMoved);
+  }
+  std::vector<coordinate> retMoves;
+  if (piece.type != King) {
+    return retMoves;
+  }
+  Color opponent = piece.color == White ? Black : White;
+  auto moveCoord = pos.incDiag(UP, LEFT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  moveCoord = pos.incDiag(UP, RIGHT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  moveCoord = pos.incDiag(DOWN, LEFT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  moveCoord = pos.incDiag(DOWN, RIGHT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  moveCoord = pos.incCol(LEFT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    bool canCastleLeft = false;
+    retMoves.push_back(moveCoord);
+    if (checkCastle && !(piece.color == White ? whiteARookMoved : blackARookMoved)) {
+      canCastleLeft = true;
+      auto castleCoord = moveCoord.incCol(LEFT);
+      while (castleCoord.collumn != A) {
+        if (!validEmptySpace(castleCoord)) {
+          canCastleLeft = false;
+          break;
+        }
+        castleCoord = castleCoord.incCol(LEFT);
+      }
+    }
+    if (canCastleLeft) {
+      retMoves.push_back(moveCoord.incRow(LEFT)); // increment one more to the left
+    }
+  }
+  moveCoord = pos.incCol(RIGHT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    bool canCastleRight = false;
+    retMoves.push_back(moveCoord);
+    if (checkCastle && !(piece.color == White ? whiteARookMoved : blackARookMoved)) {
+      canCastleRight = true;
+      auto castleCoord = moveCoord.incCol(RIGHT);
+      while (castleCoord.collumn != A) {
+        if (!validEmptySpace(castleCoord)) {
+          canCastleRight = false;
+          break;
+        }
+        castleCoord = castleCoord.incCol(RIGHT);
+      }
+    }
+    if (canCastleRight) {
+      retMoves.push_back(moveCoord.incRow(RIGHT)); // increment one more to the left
+    }
+  }
+  moveCoord = pos.incRow(UP);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  moveCoord = pos.incRow(DOWN);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+  return retMoves;
+}
+std::vector<coordinate> ChessGame::possible_queen_moves(coordinate pos) {
+    // get color and direction
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  std::vector<coordinate> retMoves;
+  if (piece.type != Queen) {
+    return retMoves;
+  }
+  Color opponent = piece.color == White ? Black : White;
+  get_possible_moves_in_direction(pos, UP, RIGHT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, DOWN, RIGHT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, UP, LEFT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, DOWN, LEFT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, UP, HOLD, opponent, retMoves);
+  get_possible_moves_in_direction(pos, DOWN, HOLD, opponent, retMoves);
+  get_possible_moves_in_direction(pos, HOLD, RIGHT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, HOLD, LEFT, opponent, retMoves);
+  return retMoves;
+}
+
+std::vector<coordinate> ChessGame::possible_rook_moves(coordinate pos) {
+    // get color and direction
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  std::vector<coordinate> retMoves;
+  if (piece.type != Rook) {
+    return retMoves;
+  }
+  Color opponent = piece.color == White ? Black : White;
+  get_possible_moves_in_direction(pos, UP, HOLD, opponent, retMoves);
+  get_possible_moves_in_direction(pos, DOWN, HOLD, opponent, retMoves);
+  get_possible_moves_in_direction(pos, HOLD, RIGHT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, HOLD, LEFT, opponent, retMoves);
+  return retMoves;
+}
+
+std::vector<coordinate> ChessGame::possible_bishop_moves(coordinate pos){
+  // get color and direction
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  std::vector<coordinate> retMoves;
+  if (piece.type != Bishop) {
+    return retMoves;
+  }
+  Color opponent = piece.color == White ? Black : White;
+  get_possible_moves_in_direction(pos, UP, RIGHT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, DOWN, RIGHT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, UP, LEFT, opponent, retMoves);
+  get_possible_moves_in_direction(pos, DOWN, LEFT, opponent, retMoves);
+  return retMoves;
+}
+
+std::vector<coordinate> ChessGame::possible_knight_moves(coordinate pos) {
+  // get color and direction
+  Piece &piece = boardArray[pos.collumn][pos.row];
+  std::vector<coordinate> retMoves;
+  if (piece.type != Knight) {
+    return retMoves;
+  }
+  Color opponent = piece.color == White ? Black : White;
+  auto moveCoord = pos.inc(UP*2, LEFT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(UP*2, RIGHT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(DOWN*2, LEFT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(DOWN*2, RIGHT);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(UP, LEFT*2);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(UP, RIGHT*2);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(DOWN, LEFT*2);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  moveCoord = pos.inc(DOWN, RIGHT*2);
+  if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) { retMoves.push_back(moveCoord); }
+  return retMoves;
+}
+
+void ChessGame::get_possible_moves_in_direction(coordinate pos, int colUp, int rowLeft, Color opponent, std::vector<coordinate> &retMoves) {
+  auto moveCoord = pos.inc(colUp, rowLeft);
+  while (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
+    retMoves.push_back(moveCoord);
+    moveCoord = moveCoord.inc(colUp,rowLeft);
+  }
+  if (validOccupiedSpaceByColor(moveCoord,opponent)) {
+    retMoves.push_back(moveCoord);
+  }
+}

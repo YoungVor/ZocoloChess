@@ -21,9 +21,14 @@
 namespace ZocoloChess {
 
 #define BOARD_LENGTH 8
+#define UP 1
+#define DOWN -1
+#define LEFT -1
+#define RIGHT 1
+#define HOLD 0
 // enum class Collumn : int8_t {
 // can't use strong typed enum without specifying the type where I use it
- enum Collumn { A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, X=15 };
+enum Collumn { A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, X=0xFF };
  enum Color { White = 0, Black = 1, Observer = 2, None = 3 };
 
  enum PieceType {
@@ -76,12 +81,45 @@ struct coordinate {
   collumn = Collumn::X;
     row = 0;
   }
-  coordinate(int8_t collumn, int8_t row) : collumn((Collumn)collumn), row(row) {
+  coordinate(const coordinate &other) : collumn(other.collumn), row(other.row) {}
+  coordinate(int8_t co, int8_t ro) {
+    set(co,ro);
   }
-
+  void set (int8_t co, int8_t ro) {
+    if (co < 0 || co >= BOARD_LENGTH) {
+      collumn = X;
+    } else {
+      collumn = (Collumn)co;
+    }
+    if (ro < 0 || ro >= BOARD_LENGTH) {
+      row = -1;
+    } else {
+      row = ro;
+    }
+  }
   bool operator==(const coordinate &other) const {
     return other.collumn == collumn && other.row == row;
   }
+  bool isValid() {
+    return row >= 0 && row < BOARD_LENGTH && collumn >= A && collumn < BOARD_LENGTH;
+  }
+  coordinate inc(int rowUp, int colRight) { // ex. inc(UP,LEFT)
+    if (!isValid()) { return coordinate(); }
+    return coordinate(collumn + colRight, row + rowUp);
+  }
+  coordinate incCol(bool right) {
+    if (!isValid()) { return coordinate(); }
+    return coordinate(collumn + (right ? 1 : -1), row);
+  }
+  coordinate incRow(bool up) {
+    if (!isValid()) { return coordinate(); }
+    return coordinate(collumn, row + (up ? 1 : -1));
+  }
+  coordinate incDiag(bool up, bool right) {
+    if (!isValid()) { return coordinate(); }
+    return coordinate(collumn + (right ? 1 : -1), row + (up ? 1 : -1));
+  }
+
 };
 
 struct Piece {
@@ -108,6 +146,10 @@ private:
   Piece *blackKing;
   bool whiteKingMoved;
   bool blackKingMoved;
+  bool whiteARookMoved;
+  bool whiteHRookMoved;
+  bool blackARookMoved;
+  bool blackHRookMoved;
   GameState state;
   Color winner = None;
   //cache
@@ -132,7 +174,9 @@ private:
   Error playerConcedes(Color color);
   std::vector<coordinate> possibleMoves(Color player);
   std::vector<coordinate> possibleMoves(coordinate piece);
-  Piece selectSpace(coordinate coord);
+  Piece &selectSpace(coordinate coord);
+  bool validEmptySpace(coordinate coord);
+  bool validOccupiedSpaceByColor(coordinate coord, Color color);
   bool pieceUnderAttack(Piece &piece) {return true;} // TODO: figure this out.
  // One possible way - convenience function to determine if any piece is under attack
 
@@ -143,12 +187,13 @@ private:
     return boardArray[position.collumn][position.row];
   }
   std::vector<coordinate> spaces_defended(Color player);
-  std::vector<coordinate> possible_pawn_moves(coordinate pos, Color color);
-  std::vector<coordinate> possible_king_moves(coordinate pos, Color color);
-  std::vector<coordinate> possible_queen_moves(coordinate pos, Color color);
-  std::vector<coordinate> possible_rook_moves(coordinate pos, Color color);
-  std::vector<coordinate> possible_bishop_moves(coordinate pos, Color color);
-  std::vector<coordinate> possible_knight_moves(coordinate pos, Color color);
+  std::vector<coordinate> possible_pawn_moves(coordinate pos);
+  std::vector<coordinate> possible_king_moves(coordinate pos);
+  std::vector<coordinate> possible_queen_moves(coordinate pos);
+  std::vector<coordinate> possible_rook_moves(coordinate pos);
+  std::vector<coordinate> possible_bishop_moves(coordinate pos);
+  std::vector<coordinate> possible_knight_moves(coordinate pos);
+  void get_possible_moves_in_direction(coordinate pos, int colRight, int rowLeft, Color opponent, std::vector<coordinate> &retMoves);
 
   void update_board();
   void load_board(uid_t id);

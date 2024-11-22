@@ -78,6 +78,7 @@ const std::map<ChessResponseType, PieceType> PieceMap {
 
 
 Error SimpleChessUI::parse_coordinate(std::string input, coordinate *coord) {
+  DEBUG("parse_coord check:'" + input + "'");
   assert(coord != nullptr);
   assert(input.size() == 2);
   auto col = CollumnMap.find(input[0]);
@@ -85,7 +86,8 @@ Error SimpleChessUI::parse_coordinate(std::string input, coordinate *coord) {
     return out_of_bounds;
   }
   int row = std::stoi(input.substr(1,1));
-  *coord = coordinate(col->second, row);
+  coord->set(col->second, row);
+  DEBUG(std::format("parse_coord returning '{}'",to_string(*coord)));
   return valid;
 }
 
@@ -93,6 +95,8 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
                                                           std::vector<std::string> &words,
                                                           coordinate *coord,
                                                           coordinate *secondCoord) {
+
+  DEBUG("parse_coord_command check");
   // parse first coord for piece selection or move selected
   if (!((CONTAINS(options, select_piece_rt) ||
        CONTAINS(options, move_selected_rt) ||
@@ -100,9 +104,13 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
         words.size() <= 2)) {
     return error_rt;
   }
+
+  DEBUG("parse_coord_command proceed");
   assert(coord != nullptr);
   if (words.front().size() == 2) {
-    parse_coordinate(words.front(), coord);
+    DEBUG("parse_coord_command check single coord");
+    auto err = parse_coordinate(words.front(), coord);
+    if (err) { TRACE(std::format("parse_coord returned err'{}''", (int)err)); }
     if (words.size() == 1) {
       if (CONTAINS(options, select_piece_rt)) { return select_piece_rt; }
       if (CONTAINS(options, move_selected_rt)) { return move_selected_rt; }
@@ -111,16 +119,20 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
           !CONTAINS(options,move_rt) ||
           words.at(1).length() != 2) { return error_rt; } // case: [D4 E5]
       assert(secondCoord != nullptr);
-      parse_coordinate(words.at(1), secondCoord);
+      err = parse_coordinate(words.at(1), secondCoord);
+      if (err) { TRACE(std::format("parse_coord returned err'{}''", (int)err)); }
     }
   } else if (words.front().size() == 5) {
+    DEBUG("parse_coord_command check double coord");
     if (words.size() != 1 ||
       !CONTAINS(options, move_rt) ||
           (words.front().at(2) != 'x' &&
            words.front().at(2) != 'X')) { return error_rt; } // case: D4xE5
       assert(secondCoord != nullptr);
-      parse_coordinate(words.front().substr(0,2), coord);
-      parse_coordinate(words.front().substr(2,2), secondCoord);
+      auto err = parse_coordinate(words.front().substr(0,2), coord);
+      if (err) { TRACE(std::format("parse_coord returned err'{}''", (int)err)); }
+      err = parse_coordinate(words.front().substr(2,2), secondCoord);
+      if (err) { TRACE(std::format("parse_coord returned err'{}''", (int)err)); }
       return move_rt;
   }
   return error_rt;

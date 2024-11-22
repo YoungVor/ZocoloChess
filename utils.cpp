@@ -65,13 +65,14 @@ std::ostream& operator<< (std::ostream& os, const Color &co)
 std::ostream& operator<<(std::ostream& os, const coordinate &c) {
   return os << c.collumn << (int)c.row;
 }
-
-template<class CLASS>
+/*
+template<typename CLASS>
 std::string to_string(const CLASS &obj) {
   std::stringstream ss;
   ss << obj;
   return ss.str();
-}
+}*/
+
 
 namespace flatbuffers {
   Serializer::Coord Pack(const coordinate& obj) {
