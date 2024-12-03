@@ -2,7 +2,7 @@
 #include "ChessGame.h"
 #include "utils.h"
 #include "ClientInterface.h"
-#include "FileSystemClient.h"
+#include "FileClientInterface.h"
 #include <cassert>
 #include <memory>
 #include <ostream>
@@ -131,7 +131,7 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
       assert(secondCoord != nullptr);
       auto err = parse_coordinate(words.front().substr(0,2), coord);
       if (err) { TRACE(std::format("parse_coord returned err'{}''", (int)err)); }
-      err = parse_coordinate(words.front().substr(2,2), secondCoord);
+      err = parse_coordinate(words.front().substr(3,2), secondCoord);
       if (err) { TRACE(std::format("parse_coord returned err'{}''", (int)err)); }
       return move_rt;
   }
@@ -203,7 +203,7 @@ Error SimpleChessUI::run_menu() {
 }
 
 Error SimpleChessUI::run_setup() {
-  std::cout << "Select a color: [w]hite, [b]lack, rando[m], [a]ll: ";
+  std::cout << "Select a color: [w]hite, [b]lack, rando[m], [o]bserver: ";
   auto resp = parse_user_command({ color_white_rt, color_black_rt, color_observer_rt, color_random_rt });
   switch (resp) {
   case color_white_rt:
@@ -302,7 +302,7 @@ Error SimpleChessUI::run_move_selected() {
   std::cout << "Make a move (";
   for (auto m : possibleMoves) { std::cout << m << ","; }
   std::cout << ")" << std::endl;
-  std::cout << "or [c]ancel";
+  std::cout << "or [c]ancel" << std::endl;
   auto resp = parse_user_command( { move_selected_rt, cancel_rt }, &destCoord);
   switch (resp) {
   case move_selected_rt: {
@@ -342,7 +342,7 @@ Error SimpleChessUI::move_piece(coordinate coord, coordinate destCoord) {
     } // fall through to valid move
   }
   case valid: {
-    std::cout << game->pretty_string(player_color);
+    std::cout << game->pretty_string(player_color) << std::endl;
     return valid;
   }
   case invalid_move: {
@@ -365,7 +365,7 @@ int SimpleChessUI::main_loop() {
       std::cout << "Welcome to Zocolo Chess Text Player!" << std::endl;
       // TODO: choose clients.  For now, use filesystem client
       // TODO: set user id
-      GameClientIF<ChessGame> *client = new ChessClientFS();
+      GameClientIF *client = new FileClientIF();
       game.reset(new ChessGame(client));
       state = st_menu;
     }

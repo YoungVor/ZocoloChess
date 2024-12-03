@@ -19,3 +19,13 @@ https://flatbuffers.dev/flatbuffers_guide_use_cpp.html
 * Default board data and class construction
 * Define chess client and simple API
 * Update move schema to be 2 coordinates
+
+
+
+schema is various lists of pieces (which can increase)
+and list of moves
+
+locally, keeping a grid 
+choice:
+must either rewrite game state from scratch, or update in place
+won't make a big difference given the size, but lets reference the piece data and update in place.

@@ -5,14 +5,18 @@
 #include <flatbuffers/flatbuffers.h>
 #include <memory>
 #include <ostream>
+#include <random>
 #include <string>
 #include <sstream>
 #include <iostream>
 #include <sys/_types/_int8_t.h>
 #include <map>
 #include <sys/_types/_uid_t.h>
+#include <sys/_types/_uuid_t.h>
 #include <unistd.h>
 #include "ClientInterface.h"
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
 // #include <format>
 
 //#include "Chess_generated.h"
@@ -138,18 +142,17 @@ struct Piece {
 
 class ChessGame {
 private:
-  std::shared_ptr<char> board_data_ptr;
-  std::unique_ptr<GameClientIF<ChessGame>> client;
+  //std::shared_ptr<char> board_data_ptr;
+  std::unique_ptr<GameClientIF> client;
   //const Serializer::ChessBoard *board_data;
+  boost::uuids::uuid id;
   Piece boardArray[8][8];
   Piece *whiteKing;
   Piece *blackKing;
-  bool whiteKingMoved;
-  bool blackKingMoved;
-  bool whiteARookMoved;
-  bool whiteHRookMoved;
-  bool blackARookMoved;
-  bool blackHRookMoved;
+  bool whiteKingCanCastleA;
+  bool whiteKingCanCastleH;
+  bool blackKingCanCastleA;
+  bool blackKingCanCastleH;
   GameState state;
   Color winner = None;
   //cache
@@ -157,7 +160,7 @@ private:
  std::vector<coordinate> spaces_defended_black;
   // do I need a reference to the buffer?
  public:
-  ChessGame(GameClientIF<ChessGame> *cl);
+  ChessGame(GameClientIF *cl);
   void init_new_board();
 
   // convenience functions
@@ -177,11 +180,12 @@ private:
   Piece &selectSpace(coordinate coord);
   bool validEmptySpace(coordinate coord);
   bool validOccupiedSpaceByColor(coordinate coord, Color color);
-  bool pieceUnderAttack(Piece &piece) {return true;} // TODO: figure this out.
+  bool pieceUnderAttack(Piece &piece) {return false;} // TODO: figure this out.
  // One possible way - convenience function to determine if any piece is under attack
 
   std::string pretty_string(Color orientation);
   std::string state_string();
+  Error load_board_data(char *read_buffer);
  private:
   Piece findPiece(coordinate position) {
     return boardArray[position.collumn][position.row];
@@ -195,6 +199,8 @@ private:
   std::vector<coordinate> possible_knight_moves(coordinate pos);
   void get_possible_moves_in_direction(coordinate pos, int colRight, int rowLeft, Color opponent, std::vector<coordinate> &retMoves);
 
+  Error write_board_data();
+  Error update_board_data();
   void update_board();
   void load_board(uid_t id);
   bool validate_board_state(); // check that board_data and board are in sync

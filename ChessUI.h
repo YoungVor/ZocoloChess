@@ -4,7 +4,7 @@
 #include "ChessGame.h"
 #include "Chess_generated.h"
 #include "ClientInterface.h"
-#include "FileSystemClient.h"
+#include "FileClientInterface.h"
 #include <map>
 
 
@@ -55,7 +55,7 @@ class SimpleChessUI {
   std::unique_ptr<ChessGame> game;
   // specific state logic
   // game logic
-  uid_t cid;
+  std::string id;
   Color player_color;
   ChessGameState state;
   coordinate selectedPiece;

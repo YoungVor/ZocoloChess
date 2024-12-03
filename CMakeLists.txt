@@ -16,8 +16,8 @@ set(SOURCES
 utils.h
 utils.cpp
 ClientInterface.h
-FileSystemClient.h
-FileSystemClient.cpp
+FileClientInterface.h
+FileClientInterface.cpp
 ChessUI.h
 ChessUI.cpp
 ChessGame.h

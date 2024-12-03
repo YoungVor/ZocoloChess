@@ -1,8 +1,7 @@
 #ifndef CLIENTINTERFACE_H_
 #define CLIENTINTERFACE_H_
 
-#include "ChessGame.h"
-#include <sys/_types/_uid_t.h>
+#include <boost/uuid/uuid.hpp>
 
 enum ClientError {
   success = 0,
@@ -10,13 +9,16 @@ enum ClientError {
   unknown_error,
 };
 
-template<class GAME>
 class GameClientIF {
 public:
-  virtual ~GameClientIF<GAME> () {}
-  virtual ClientError read_board(uid_t id, GAME &game) = 0;
-  virtual ClientError write_board(uid_t id, GAME &game) = 0;
-  virtual ClientError load_board(GAME &game) = 0;
+  virtual ~GameClientIF () = default;
+
+  // caller provides the block of data
+  // client will reallocate buffer and set new size if more data is needed
+  virtual ClientError read_board(boost::uuids::uuid id, std::unique_ptr<char> buffer_ptr, int &buffer_len) = 0;
+
+  // caller provides the block of data and the id
+  virtual ClientError write_board(boost::uuids::uuid id, const char *buffer_ptr, int buffer_len) = 0;
 };
 
 

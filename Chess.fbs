@@ -26,9 +26,9 @@ struct Coord(native_type:"ZocoloChess::coordinate") {
 // copying the Piece upon a move is probably preferable to changing in place.
 // On second thought, don't really need this struct at all. Embedding type and color into board is more space efficient
 // On third thought, you need to represent history with a data structure like this.
-struct Move {
-    type:PieceType; // 8bit
-    move:Coord; // 16bit
+struct Move(native_type:"ZocoloChess::move") {
+    piece:Coord; // 16bit
+    dest:Coord; // 16bit
 }
 
 

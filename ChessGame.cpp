@@ -2,6 +2,7 @@
 #include "Chess_generated.h"
 #include "utils.h"
 #include <cassert>
+#include <cstdlib>
 #include <format>
 #include <_types/_uint8_t.h>
 #include <memory>
@@ -24,7 +25,7 @@ std::string Piece::pretty_string() {
     return ss.str();
 }
 
-ChessGame::ChessGame(GameClientIF<ChessGame> *cl) {
+ChessGame::ChessGame(GameClientIF *cl) {
   client.reset(cl);
   init_new_board();
 }
@@ -35,6 +36,7 @@ void ChessGame::load_board(uid_t id) {
 
 void ChessGame::init_new_board() {
   DEBUG("init board");
+  id = boost::uuids::random_generator()();
   auto piece = Piece(coordinate(A,0), White, Rook);
    std::stringstream ss;
   boardArray[A][0] = piece;
@@ -76,15 +78,112 @@ void ChessGame::init_new_board() {
 
   state = Turn;
   winner = None;
-  whiteKingMoved = false;
-  blackKingMoved = false;
-  blackKingMoved = false;
-  whiteARookMoved = false;
-  whiteHRookMoved = false;
-  blackARookMoved = false;
-  blackHRookMoved = false;
-
+  whiteKingCanCastleA = true;
+  blackKingCanCastleA = true;
+  whiteKingCanCastleH = true;
+  blackKingCanCastleH = true;
 }
+
+Error ChessGame::write_board_data() {
+  flatbuffers::FlatBufferBuilder builder(1024);
+  std::vector<Serializer::Coord> white_pawns;
+  std::vector<Serializer::Coord> black_pawns;
+  std::vector<Serializer::Coord> white_knights;
+  std::vector<Serializer::Coord> black_knights;
+  std::vector<Serializer::Coord> white_bishops;
+  std::vector<Serializer::Coord> black_bishops;
+  std::vector<Serializer::Coord> white_rooks;
+  std::vector<Serializer::Coord> black_rooks;
+  std::vector<Serializer::Coord> white_queens;
+  std::vector<Serializer::Coord> black_queens;
+  std::vector<Serializer::Coord> white_kings;
+  std::vector<Serializer::Coord> black_kings;
+
+  for (int col = 0; col < BOARD_LENGTH; col++) {
+    for (int row = 0; row < BOARD_LENGTH; row++) {
+      auto &piece = boardArray[col][row];
+      if (!piece.isEmpty()) {
+        switch (piece.type) {
+        case Pawn: {
+          if (piece.color == White) {
+            white_pawns.push_back(flatbuffers::Pack(piece.position));
+          } else {
+            black_pawns.push_back(flatbuffers::Pack(piece.position));
+          }
+          break;
+        }
+        case Knight: {
+          if (piece.color == White) {
+            white_knights.push_back(flatbuffers::Pack(piece.position));
+          } else {
+            black_knights.push_back(flatbuffers::Pack(piece.position));
+          }
+          break;
+        }
+        case Bishop: {
+          if (piece.color == White) {
+            white_bishops.push_back(flatbuffers::Pack(piece.position));
+          } else {
+            black_bishops.push_back(flatbuffers::Pack(piece.position));
+          }
+          break;
+        }
+        case Rook: {
+          if (piece.color == White) {
+            white_rooks.push_back(flatbuffers::Pack(piece.position));
+          } else {
+            black_rooks.push_back(flatbuffers::Pack(piece.position));
+          }
+          break;
+        }
+        case Queen: {
+          if (piece.color == White) {
+            white_queens.push_back(flatbuffers::Pack(piece.position));
+          } else {
+            black_queens.push_back(flatbuffers::Pack(piece.position));
+          }
+          break;
+        }
+        case King: {
+          if (piece.color == White) {
+            white_kings.push_back(flatbuffers::Pack(piece.position));
+          } else {
+            black_kings.push_back(flatbuffers::Pack(piece.position));
+          }
+          break;
+        }
+        default:
+          log(INFO, "write_board error: bad piece type" + std::to_string(piece.type));
+          return Error::bad_state;
+        }
+      }
+    }
+  }
+  std::vector<Serializer::Move> moves;
+
+
+  auto board = Serializer::CreateChessBoard(builder,
+                                            builder.CreateVectorOfStructs(white_pawns.data(), white_pawns.size()),
+                                            builder.CreateVectorOfStructs(black_pawns.data(), black_pawns.size()),
+                                            builder.CreateVectorOfStructs(white_bishops.data(), white_bishops.size()),
+                                            builder.CreateVectorOfStructs(black_bishops.data(), black_bishops.size()),
+                                            builder.CreateVectorOfStructs(white_knights.data(), white_knights.size()),
+                                            builder.CreateVectorOfStructs(black_knights.data(), black_knights.size()),
+                                            builder.CreateVectorOfStructs(white_rooks.data(), white_rooks.size()),
+                                            builder.CreateVectorOfStructs(black_rooks.data(), black_rooks.size()),
+                                            builder.CreateVectorOfStructs(white_queens.data(), white_queens.size()),
+                                            builder.CreateVectorOfStructs(black_queens.data(), black_queens.size()),
+                                            builder.CreateVectorOfStructs(white_kings.data(), white_kings.size()),
+                                            builder.CreateVectorOfStructs(black_kings.data(), black_kings.size()),
+                                            builder.CreateVectorOfStructs(moves.data(), moves.size()));
+  builder.Finish(board);
+
+  client->write_board(id, (char*)builder.GetBufferPointer(), builder.GetBufferMinAlignment());
+
+  return Error::valid;
+}
+
+
 
 Color ChessGame::playerTurn() { return White; }
 
@@ -175,12 +274,49 @@ Error ChessGame::movePiece(coordinate pos, coordinate dest) {
     return isValid;
   }
 
-  // update state
+  Piece &piece = selectSpace(pos);
 
   // check if piece is taken
 
-  // special case for castle
+  // special case for castling
 
+  if (piece.type == King) {
+    if (piece.color == White) {
+      whiteKingCanCastleA = false;
+      whiteKingCanCastleH = false;
+    }
+    if (piece.color == Black) {
+      blackKingCanCastleA = false;
+      blackKingCanCastleH = false;
+    }
+  }
+    if (piece.type == Rook) {
+      if (piece.color == White) {
+        if (whiteKingCanCastleA && piece.position.collumn == A) {
+          whiteKingCanCastleA = false;
+        }
+      } else {
+        if (blackKingCanCastleA && piece.position.collumn == A) {
+          blackKingCanCastleA = false;
+        }
+      }
+      if (piece.color == White) {
+        if (whiteKingCanCastleH && piece.position.collumn == H) {
+          whiteKingCanCastleH = false;
+        }
+      } else {
+        if (blackKingCanCastleH && piece.position.collumn == H) {
+          blackKingCanCastleH = false;
+        }
+      }
+  }
+  // move piece
+  selectSpace(dest) = piece;
+  selectSpace(dest).position = dest;
+  piece = Piece(pos);
+
+
+  write_board_data();
   return isValid;
 }
 
@@ -300,10 +436,6 @@ std::vector<coordinate> ChessGame::possible_pawn_moves(coordinate pos) {
 std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos) {
     // get color and direction
   Piece &piece = boardArray[pos.collumn][pos.row];
-  bool checkCastle;
-  if (piece.color == White) {
-    checkCastle = !whiteKingMoved && (!whiteARookMoved || !whiteHRookMoved);
-  }
   std::vector<coordinate> retMoves;
   if (piece.type != King) {
     return retMoves;
@@ -329,7 +461,7 @@ std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos) {
   if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
     bool canCastleLeft = false;
     retMoves.push_back(moveCoord);
-    if (checkCastle && !(piece.color == White ? whiteARookMoved : blackARookMoved)) {
+    if (piece.color == White ? whiteKingCanCastleA : blackKingCanCastleA) { // check castle
       canCastleLeft = true;
       auto castleCoord = moveCoord.incCol(LEFT);
       while (castleCoord.collumn != A) {
@@ -348,7 +480,7 @@ std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos) {
   if (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
     bool canCastleRight = false;
     retMoves.push_back(moveCoord);
-    if (checkCastle && !(piece.color == White ? whiteARookMoved : blackARookMoved)) {
+    if (piece.color == White ? whiteKingCanCastleH : blackKingCanCastleH) { // check castle
       canCastleRight = true;
       auto castleCoord = moveCoord.incCol(RIGHT);
       while (castleCoord.collumn != A) {
