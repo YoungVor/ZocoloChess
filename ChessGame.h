@@ -1,6 +1,7 @@
 #ifndef CHESSGAME_H_
 #define CHESSGAME_H_
 
+#include <__concepts/destructible.h>
 #include <_types/_uint8_t.h>
 #include <flatbuffers/flatbuffers.h>
 #include <memory>
@@ -108,22 +109,29 @@ struct coordinate {
     return row >= 0 && row < BOARD_LENGTH && collumn >= A && collumn < BOARD_LENGTH;
   }
   coordinate inc(int rowUp, int colRight) { // ex. inc(UP,LEFT)
-    if (!isValid()) { return coordinate(); }
+    //if (!isValid()) { return coordinate(); }
     return coordinate(collumn + colRight, row + rowUp);
   }
-  coordinate incCol(bool right) {
-    if (!isValid()) { return coordinate(); }
-    return coordinate(collumn + (right ? 1 : -1), row);
+  coordinate incCol(short right) {
+    //if (!isValid()) { return coordinate(); }
+    return coordinate(collumn + right, row);
   }
-  coordinate incRow(bool up) {
-    if (!isValid()) { return coordinate(); }
-    return coordinate(collumn, row + (up ? 1 : -1));
+  coordinate incRow(short up) {
+    //if (!isValid()) { return coordinate(); }
+    return coordinate(collumn, row + up);
   }
-  coordinate incDiag(bool up, bool right) {
-    if (!isValid()) { return coordinate(); }
-    return coordinate(collumn + (right ? 1 : -1), row + (up ? 1 : -1));
+  coordinate incDiag(short up, short right) {
+    //if (!isValid()) { return coordinate(); }
+    return coordinate(collumn + right, row + up);
   }
 
+};
+
+struct move {
+  coordinate piece;
+  coordinate newPos;
+  move(const move &other) : piece(other.piece), newPos(other.newPos) {};
+  move(coordinate p, coordinate d) : piece(p), newPos(d) {};
 };
 
 struct Piece {
@@ -147,6 +155,8 @@ private:
   //const Serializer::ChessBoard *board_data;
   boost::uuids::uuid id;
   Piece boardArray[8][8];
+  std::vector<move> move_log;
+  short moveCount;
   Piece *whiteKing;
   Piece *blackKing;
   bool whiteKingCanCastleA;
@@ -212,12 +222,15 @@ private:
 
 namespace Serializer {
   struct Coord;
+  struct Move;
   //std::shared_ptr<char> CreateNewChessGameData(flatbuffers::FlatBufferBuilder &builder);
 }
 
 namespace flatbuffers {
  Serializer::Coord Pack(const ZocoloChess::coordinate& obj);
  const ZocoloChess::coordinate UnPack(const Serializer::Coord& obj);
+ Serializer::Move Pack(const ZocoloChess::move& obj);
+ const ZocoloChess::move UnPack(const Serializer::Move& obj);
 } // namespace flatbuffers
 
 

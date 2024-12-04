@@ -43,23 +43,23 @@ void ChessGame::init_new_board() {
   ss << "piece at A,0: " << boardArray[A][0].pretty_string() << std::endl;
   ss << "assigned at A,0: " << piece.pretty_string() << std::endl;
 
-
+  // TODO: should be a single authority on the piece position.  maybe remove 'pos' from the Piece
   boardArray[H][0] = Piece(coordinate(H,0), White, Rook);
-  boardArray[B][0] = Piece(coordinate(C,0), White, Bishop);
-  boardArray[G][0] = Piece(coordinate(F,0), White, Bishop);
-  boardArray[C][0] = Piece(coordinate(B,0), White, Knight);
-  boardArray[F][0] = Piece(coordinate(G,0), White, Knight);
+  boardArray[C][0] = Piece(coordinate(C,0), White, Bishop);
+  boardArray[F][0] = Piece(coordinate(F,0), White, Bishop);
+  boardArray[B][0] = Piece(coordinate(B,0), White, Knight);
+  boardArray[G][0] = Piece(coordinate(G,0), White, Knight);
   boardArray[E][0] = Piece(coordinate(E,0), White, King);
   boardArray[D][0] = Piece(coordinate(D,0), White, Queen);
 
   boardArray[A][7] = Piece(coordinate(A,7), Black, Rook);
   boardArray[H][7] = Piece(coordinate(H,7), Black, Rook);
-  boardArray[B][7] = Piece(coordinate(C,7), Black, Bishop);
-  boardArray[G][7] = Piece(coordinate(F,7), Black, Bishop);
-  boardArray[C][7] = Piece(coordinate(C,7), Black, Knight);
-  boardArray[F][7] = Piece(coordinate(B,7), Black, Knight);
-  boardArray[D][7] = Piece(coordinate(G,7), Black, King);
-  boardArray[E][7] = Piece(coordinate(E,7), Black, Queen);
+  boardArray[C][7] = Piece(coordinate(C,7), Black, Bishop);
+  boardArray[F][7] = Piece(coordinate(F,7), Black, Bishop);
+  boardArray[B][7] = Piece(coordinate(B,7), Black, Knight);
+  boardArray[G][7] = Piece(coordinate(G,7), Black, Knight);
+  boardArray[E][7] = Piece(coordinate(E,7), Black, King);
+  boardArray[D][7] = Piece(coordinate(D,7), Black, Queen);
 
   for (int c = A; c < BOARD_LENGTH; c++) {
     boardArray[c][1] = Piece(coordinate(c,1), White, Pawn);
@@ -82,6 +82,8 @@ void ChessGame::init_new_board() {
   blackKingCanCastleA = true;
   whiteKingCanCastleH = true;
   blackKingCanCastleH = true;
+  moveCount = 0;
+
 }
 
 Error ChessGame::write_board_data() {
@@ -160,9 +162,16 @@ Error ChessGame::write_board_data() {
     }
   }
   std::vector<Serializer::Move> moves;
+  auto packedID = builder.CreateString(boost::uuids::to_string(id));
 
 
   auto board = Serializer::CreateChessBoard(builder,
+                                            packedID,
+                                            whiteKingCanCastleA,
+                                            whiteKingCanCastleH,
+                                            blackKingCanCastleA,
+                                            blackKingCanCastleH,
+                                            moveCount,
                                             builder.CreateVectorOfStructs(white_pawns.data(), white_pawns.size()),
                                             builder.CreateVectorOfStructs(black_pawns.data(), black_pawns.size()),
                                             builder.CreateVectorOfStructs(white_bishops.data(), white_bishops.size()),
@@ -185,7 +194,9 @@ Error ChessGame::write_board_data() {
 
 
 
-Color ChessGame::playerTurn() { return White; }
+Color ChessGame::playerTurn() {
+  return (moveCount % 2 == 1) ? Black : White;
+}
 
   #define square_length 16
 #define square_height 4
@@ -194,10 +205,10 @@ std::string ChessGame::pretty_string(Color orientation) {
   std::stringstream ss;
   std::stringstream tmpSS;
   if (orientation != Black) { orientation = White; }
-  Color firstSqColor = orientation;
+  Color firstSqColor = White; // bottom square to the right of each player is always white
   Color curSquare = firstSqColor;
   for (int r = 0; r < BOARD_LENGTH; r++) {
-    int rowIndex = (playerTurn() == Black) ? r : BOARD_LENGTH - r - 1;
+    int rowIndex = (orientation == Black) ? r : BOARD_LENGTH - r - 1;
     // Top Boarder
     ss << "   " << std::string(square_length*BOARD_LENGTH+1, '-') << std::endl;
     // Top
@@ -213,11 +224,12 @@ std::string ChessGame::pretty_string(Color orientation) {
     // Middle (state)
     ss << " " << rowIndex << " ";
     for (int c = A; c < BOARD_LENGTH; c++) {
+      int colIndex = (orientation == White) ? c : BOARD_LENGTH - c - 1;
       char fill =  (curSquare == White) ? ' ' : '.';
-      if (boardArray[c][r].isEmpty()) {
+      if (boardArray[colIndex][rowIndex].isEmpty()) {
         ss << "|" << std::string(15, fill);
       } else {
-        ss << "|" << std::string(4, fill) << boardArray[(Collumn)c][rowIndex].pretty_string() << std::string(4, fill);
+        ss << "|" << std::string(4, fill) << boardArray[(Collumn)colIndex][rowIndex].pretty_string() << std::string(4, fill);
       }
       curSquare = (curSquare == White) ? Black : White;
     }
@@ -315,7 +327,11 @@ Error ChessGame::movePiece(coordinate pos, coordinate dest) {
   selectSpace(dest).position = dest;
   piece = Piece(pos);
 
+  move_log.push_back(move(pos, dest));
+  moveCount++;
+  assert(moveCount == move_log.size());
 
+  // update durable state
   write_board_data();
   return isValid;
 }
@@ -410,7 +426,7 @@ std::vector<coordinate> ChessGame::possible_pawn_moves(coordinate pos) {
   if (piece.type != Pawn) {
     return retMoves;
   }
-  bool up = piece.color == White ? 1 : -1;
+  short up = (piece.color == White) ? 1 : -1;
   Color opponent = piece.color == White ? Black : White;
   assert(piece.type == Pawn);
   auto moveCoord = pos.incRow(up);
@@ -463,7 +479,7 @@ std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos) {
     retMoves.push_back(moveCoord);
     if (piece.color == White ? whiteKingCanCastleA : blackKingCanCastleA) { // check castle
       canCastleLeft = true;
-      auto castleCoord = moveCoord.incCol(LEFT);
+      auto castleCoord = moveCoord;
       while (castleCoord.collumn != A) {
         if (!validEmptySpace(castleCoord)) {
           canCastleLeft = false;
@@ -482,7 +498,7 @@ std::vector<coordinate> ChessGame::possible_king_moves(coordinate pos) {
     retMoves.push_back(moveCoord);
     if (piece.color == White ? whiteKingCanCastleH : blackKingCanCastleH) { // check castle
       canCastleRight = true;
-      auto castleCoord = moveCoord.incCol(RIGHT);
+      auto castleCoord = moveCoord;
       while (castleCoord.collumn != A) {
         if (!validEmptySpace(castleCoord)) {
           canCastleRight = false;
@@ -585,6 +601,9 @@ void ChessGame::get_possible_moves_in_direction(coordinate pos, int colUp, int r
   auto moveCoord = pos.inc(colUp, rowLeft);
   while (validEmptySpace(moveCoord) || validOccupiedSpaceByColor(moveCoord, opponent)) {
     retMoves.push_back(moveCoord);
+    if (validOccupiedSpaceByColor(moveCoord, opponent)) {
+      break; // can't move past opponent's piece
+    }
     moveCoord = moveCoord.inc(colUp,rowLeft);
   }
   if (validOccupiedSpaceByColor(moveCoord,opponent)) {

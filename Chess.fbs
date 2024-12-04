@@ -35,6 +35,12 @@ struct Move(native_type:"ZocoloChess::move") {
 //TODO: add player names (string)
 // vector sizes can grow or shrink
 table ChessBoard {
+    id:string; // 64 bytes
+    white_king_can_castle_a:bool;
+    white_king_can_castle_h:bool;
+    black_king_can_castle_a:bool;
+    black_king_can_castle_h:bool;
+    move_count:short;
     white_pawns:[Coord];
     black_pawns:[Coord];
     white_bishops:[Coord];

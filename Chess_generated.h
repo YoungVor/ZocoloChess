@@ -13,7 +13,6 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 24 &&
               FLATBUFFERS_VERSION_REVISION == 25,
              "Non-compatible flatbuffers version included");
 
-#include "ChessGame.h"
 
 namespace Serializer {
 
@@ -23,7 +22,6 @@ struct Move;
 
 struct ChessBoard;
 struct ChessBoardBuilder;
-struct ChessBoardT;
 
 enum Color : int8_t {
   Color_White = 0,
@@ -114,162 +112,124 @@ FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(1) Coord FLATBUFFERS_FINAL_CLASS {
   int8_t column() const {
     return ::flatbuffers::EndianScalar(column_);
   }
-  void mutate_column(int8_t _column) {
-    ::flatbuffers::WriteScalar(&column_, _column);
-  }
   int8_t row() const {
     return ::flatbuffers::EndianScalar(row_);
-  }
-  void mutate_row(int8_t _row) {
-    ::flatbuffers::WriteScalar(&row_, _row);
   }
 };
 FLATBUFFERS_STRUCT_END(Coord, 2);
 
 FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(1) Move FLATBUFFERS_FINAL_CLASS {
  private:
-  int8_t type_;
-  Serializer::Coord move_;
+  Serializer::Coord piece_;
+  Serializer::Coord dest_;
 
  public:
   Move()
-      : type_(0),
-        move_() {
+      : piece_(),
+        dest_() {
   }
-  Move(Serializer::PieceType _type, const Serializer::Coord &_move)
-      : type_(::flatbuffers::EndianScalar(static_cast<int8_t>(_type))),
-        move_(_move) {
+  Move(const Serializer::Coord &_piece, const Serializer::Coord &_dest)
+      : piece_(_piece),
+        dest_(_dest) {
   }
-  Serializer::PieceType type() const {
-    return static_cast<Serializer::PieceType>(::flatbuffers::EndianScalar(type_));
+  const Serializer::Coord &piece() const {
+    return piece_;
   }
-  void mutate_type(Serializer::PieceType _type) {
-    ::flatbuffers::WriteScalar(&type_, static_cast<int8_t>(_type));
-  }
-  const Serializer::Coord &move() const {
-    return move_;
-  }
-  Serializer::Coord &mutable_move() {
-    return move_;
+  const Serializer::Coord &dest() const {
+    return dest_;
   }
 };
-FLATBUFFERS_STRUCT_END(Move, 3);
-
-struct ChessBoardT : public ::flatbuffers::NativeTable {
-  typedef ChessBoard TableType;
-  std::vector<ZocoloChess::coordinate> white_pawns{};
-  std::vector<ZocoloChess::coordinate> black_pawns{};
-  std::vector<ZocoloChess::coordinate> white_bishops{};
-  std::vector<ZocoloChess::coordinate> black_bishops{};
-  std::vector<ZocoloChess::coordinate> white_knights{};
-  std::vector<ZocoloChess::coordinate> black_knights{};
-  std::vector<ZocoloChess::coordinate> white_rooks{};
-  std::vector<ZocoloChess::coordinate> black_rooks{};
-  std::vector<ZocoloChess::coordinate> white_queens{};
-  std::vector<ZocoloChess::coordinate> black_queens{};
-  std::vector<ZocoloChess::coordinate> white_kings{};
-  std::vector<ZocoloChess::coordinate> black_kings{};
-  std::vector<Serializer::Move> moves{};
-};
+FLATBUFFERS_STRUCT_END(Move, 4);
 
 struct ChessBoard FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
-  typedef ChessBoardT NativeTableType;
   typedef ChessBoardBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_WHITE_PAWNS = 4,
-    VT_BLACK_PAWNS = 6,
-    VT_WHITE_BISHOPS = 8,
-    VT_BLACK_BISHOPS = 10,
-    VT_WHITE_KNIGHTS = 12,
-    VT_BLACK_KNIGHTS = 14,
-    VT_WHITE_ROOKS = 16,
-    VT_BLACK_ROOKS = 18,
-    VT_WHITE_QUEENS = 20,
-    VT_BLACK_QUEENS = 22,
-    VT_WHITE_KINGS = 24,
-    VT_BLACK_KINGS = 26,
-    VT_MOVES = 28
+    VT_ID = 4,
+    VT_WHITE_KING_CAN_CASTLE_A = 6,
+    VT_WHITE_KING_CAN_CASTLE_H = 8,
+    VT_BLACK_KING_CAN_CASTLE_A = 10,
+    VT_BLACK_KING_CAN_CASTLE_H = 12,
+    VT_MOVE_COUNT = 14,
+    VT_WHITE_PAWNS = 16,
+    VT_BLACK_PAWNS = 18,
+    VT_WHITE_BISHOPS = 20,
+    VT_BLACK_BISHOPS = 22,
+    VT_WHITE_KNIGHTS = 24,
+    VT_BLACK_KNIGHTS = 26,
+    VT_WHITE_ROOKS = 28,
+    VT_BLACK_ROOKS = 30,
+    VT_WHITE_QUEENS = 32,
+    VT_BLACK_QUEENS = 34,
+    VT_WHITE_KINGS = 36,
+    VT_BLACK_KINGS = 38,
+    VT_MOVES = 40
   };
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  bool white_king_can_castle_a() const {
+    return GetField<uint8_t>(VT_WHITE_KING_CAN_CASTLE_A, 0) != 0;
+  }
+  bool white_king_can_castle_h() const {
+    return GetField<uint8_t>(VT_WHITE_KING_CAN_CASTLE_H, 0) != 0;
+  }
+  bool black_king_can_castle_a() const {
+    return GetField<uint8_t>(VT_BLACK_KING_CAN_CASTLE_A, 0) != 0;
+  }
+  bool black_king_can_castle_h() const {
+    return GetField<uint8_t>(VT_BLACK_KING_CAN_CASTLE_H, 0) != 0;
+  }
+  int16_t move_count() const {
+    return GetField<int16_t>(VT_MOVE_COUNT, 0);
+  }
   const ::flatbuffers::Vector<const Serializer::Coord *> *white_pawns() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_PAWNS);
-  }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_white_pawns() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_PAWNS);
   }
   const ::flatbuffers::Vector<const Serializer::Coord *> *black_pawns() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_PAWNS);
   }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_black_pawns() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_PAWNS);
-  }
   const ::flatbuffers::Vector<const Serializer::Coord *> *white_bishops() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_BISHOPS);
-  }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_white_bishops() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_BISHOPS);
   }
   const ::flatbuffers::Vector<const Serializer::Coord *> *black_bishops() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_BISHOPS);
   }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_black_bishops() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_BISHOPS);
-  }
   const ::flatbuffers::Vector<const Serializer::Coord *> *white_knights() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_KNIGHTS);
-  }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_white_knights() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_KNIGHTS);
   }
   const ::flatbuffers::Vector<const Serializer::Coord *> *black_knights() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_KNIGHTS);
   }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_black_knights() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_KNIGHTS);
-  }
   const ::flatbuffers::Vector<const Serializer::Coord *> *white_rooks() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_ROOKS);
-  }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_white_rooks() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_ROOKS);
   }
   const ::flatbuffers::Vector<const Serializer::Coord *> *black_rooks() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_ROOKS);
   }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_black_rooks() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_ROOKS);
-  }
   const ::flatbuffers::Vector<const Serializer::Coord *> *white_queens() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_QUEENS);
-  }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_white_queens() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_QUEENS);
   }
   const ::flatbuffers::Vector<const Serializer::Coord *> *black_queens() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_QUEENS);
   }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_black_queens() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_QUEENS);
-  }
   const ::flatbuffers::Vector<const Serializer::Coord *> *white_kings() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_KINGS);
-  }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_white_kings() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_WHITE_KINGS);
   }
   const ::flatbuffers::Vector<const Serializer::Coord *> *black_kings() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_KINGS);
   }
-  ::flatbuffers::Vector<const Serializer::Coord *> *mutable_black_kings() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Coord *> *>(VT_BLACK_KINGS);
-  }
   const ::flatbuffers::Vector<const Serializer::Move *> *moves() const {
     return GetPointer<const ::flatbuffers::Vector<const Serializer::Move *> *>(VT_MOVES);
   }
-  ::flatbuffers::Vector<const Serializer::Move *> *mutable_moves() {
-    return GetPointer<::flatbuffers::Vector<const Serializer::Move *> *>(VT_MOVES);
-  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyField<uint8_t>(verifier, VT_WHITE_KING_CAN_CASTLE_A, 1) &&
+           VerifyField<uint8_t>(verifier, VT_WHITE_KING_CAN_CASTLE_H, 1) &&
+           VerifyField<uint8_t>(verifier, VT_BLACK_KING_CAN_CASTLE_A, 1) &&
+           VerifyField<uint8_t>(verifier, VT_BLACK_KING_CAN_CASTLE_H, 1) &&
+           VerifyField<int16_t>(verifier, VT_MOVE_COUNT, 2) &&
            VerifyOffset(verifier, VT_WHITE_PAWNS) &&
            verifier.VerifyVector(white_pawns()) &&
            VerifyOffset(verifier, VT_BLACK_PAWNS) &&
@@ -298,15 +258,30 @@ struct ChessBoard FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
            verifier.VerifyVector(moves()) &&
            verifier.EndTable();
   }
-  ChessBoardT *UnPack(const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(ChessBoardT *_o, const ::flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static ::flatbuffers::Offset<ChessBoard> Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ChessBoardT* _o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct ChessBoardBuilder {
   typedef ChessBoard Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(ChessBoard::VT_ID, id);
+  }
+  void add_white_king_can_castle_a(bool white_king_can_castle_a) {
+    fbb_.AddElement<uint8_t>(ChessBoard::VT_WHITE_KING_CAN_CASTLE_A, static_cast<uint8_t>(white_king_can_castle_a), 0);
+  }
+  void add_white_king_can_castle_h(bool white_king_can_castle_h) {
+    fbb_.AddElement<uint8_t>(ChessBoard::VT_WHITE_KING_CAN_CASTLE_H, static_cast<uint8_t>(white_king_can_castle_h), 0);
+  }
+  void add_black_king_can_castle_a(bool black_king_can_castle_a) {
+    fbb_.AddElement<uint8_t>(ChessBoard::VT_BLACK_KING_CAN_CASTLE_A, static_cast<uint8_t>(black_king_can_castle_a), 0);
+  }
+  void add_black_king_can_castle_h(bool black_king_can_castle_h) {
+    fbb_.AddElement<uint8_t>(ChessBoard::VT_BLACK_KING_CAN_CASTLE_H, static_cast<uint8_t>(black_king_can_castle_h), 0);
+  }
+  void add_move_count(int16_t move_count) {
+    fbb_.AddElement<int16_t>(ChessBoard::VT_MOVE_COUNT, move_count, 0);
+  }
   void add_white_pawns(::flatbuffers::Offset<::flatbuffers::Vector<const Serializer::Coord *>> white_pawns) {
     fbb_.AddOffset(ChessBoard::VT_WHITE_PAWNS, white_pawns);
   }
@@ -359,6 +334,12 @@ struct ChessBoardBuilder {
 
 inline ::flatbuffers::Offset<ChessBoard> CreateChessBoard(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    bool white_king_can_castle_a = false,
+    bool white_king_can_castle_h = false,
+    bool black_king_can_castle_a = false,
+    bool black_king_can_castle_h = false,
+    int16_t move_count = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<const Serializer::Coord *>> white_pawns = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<const Serializer::Coord *>> black_pawns = 0,
     ::flatbuffers::Offset<::flatbuffers::Vector<const Serializer::Coord *>> white_bishops = 0,
@@ -386,11 +367,23 @@ inline ::flatbuffers::Offset<ChessBoard> CreateChessBoard(
   builder_.add_white_bishops(white_bishops);
   builder_.add_black_pawns(black_pawns);
   builder_.add_white_pawns(white_pawns);
+  builder_.add_id(id);
+  builder_.add_move_count(move_count);
+  builder_.add_black_king_can_castle_h(black_king_can_castle_h);
+  builder_.add_black_king_can_castle_a(black_king_can_castle_a);
+  builder_.add_white_king_can_castle_h(white_king_can_castle_h);
+  builder_.add_white_king_can_castle_a(white_king_can_castle_a);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<ChessBoard> CreateChessBoardDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    bool white_king_can_castle_a = false,
+    bool white_king_can_castle_h = false,
+    bool black_king_can_castle_a = false,
+    bool black_king_can_castle_h = false,
+    int16_t move_count = 0,
     const std::vector<Serializer::Coord> *white_pawns = nullptr,
     const std::vector<Serializer::Coord> *black_pawns = nullptr,
     const std::vector<Serializer::Coord> *white_bishops = nullptr,
@@ -404,6 +397,7 @@ inline ::flatbuffers::Offset<ChessBoard> CreateChessBoardDirect(
     const std::vector<Serializer::Coord> *white_kings = nullptr,
     const std::vector<Serializer::Coord> *black_kings = nullptr,
     const std::vector<Serializer::Move> *moves = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
   auto white_pawns__ = white_pawns ? _fbb.CreateVectorOfStructs<Serializer::Coord>(*white_pawns) : 0;
   auto black_pawns__ = black_pawns ? _fbb.CreateVectorOfStructs<Serializer::Coord>(*black_pawns) : 0;
   auto white_bishops__ = white_bishops ? _fbb.CreateVectorOfStructs<Serializer::Coord>(*white_bishops) : 0;
@@ -419,6 +413,12 @@ inline ::flatbuffers::Offset<ChessBoard> CreateChessBoardDirect(
   auto moves__ = moves ? _fbb.CreateVectorOfStructs<Serializer::Move>(*moves) : 0;
   return Serializer::CreateChessBoard(
       _fbb,
+      id__,
+      white_king_can_castle_a,
+      white_king_can_castle_h,
+      black_king_can_castle_a,
+      black_king_can_castle_h,
+      move_count,
       white_pawns__,
       black_pawns__,
       white_bishops__,
@@ -434,84 +434,12 @@ inline ::flatbuffers::Offset<ChessBoard> CreateChessBoardDirect(
       moves__);
 }
 
-::flatbuffers::Offset<ChessBoard> CreateChessBoard(::flatbuffers::FlatBufferBuilder &_fbb, const ChessBoardT *_o, const ::flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-inline ChessBoardT *ChessBoard::UnPack(const ::flatbuffers::resolver_function_t *_resolver) const {
-  auto _o = std::unique_ptr<ChessBoardT>(new ChessBoardT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
-}
-
-inline void ChessBoard::UnPackTo(ChessBoardT *_o, const ::flatbuffers::resolver_function_t *_resolver) const {
-  (void)_o;
-  (void)_resolver;
-  { auto _e = white_pawns(); if (_e) { _o->white_pawns.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->white_pawns[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->white_pawns.resize(0); } }
-  { auto _e = black_pawns(); if (_e) { _o->black_pawns.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->black_pawns[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->black_pawns.resize(0); } }
-  { auto _e = white_bishops(); if (_e) { _o->white_bishops.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->white_bishops[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->white_bishops.resize(0); } }
-  { auto _e = black_bishops(); if (_e) { _o->black_bishops.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->black_bishops[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->black_bishops.resize(0); } }
-  { auto _e = white_knights(); if (_e) { _o->white_knights.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->white_knights[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->white_knights.resize(0); } }
-  { auto _e = black_knights(); if (_e) { _o->black_knights.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->black_knights[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->black_knights.resize(0); } }
-  { auto _e = white_rooks(); if (_e) { _o->white_rooks.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->white_rooks[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->white_rooks.resize(0); } }
-  { auto _e = black_rooks(); if (_e) { _o->black_rooks.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->black_rooks[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->black_rooks.resize(0); } }
-  { auto _e = white_queens(); if (_e) { _o->white_queens.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->white_queens[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->white_queens.resize(0); } }
-  { auto _e = black_queens(); if (_e) { _o->black_queens.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->black_queens[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->black_queens.resize(0); } }
-  { auto _e = white_kings(); if (_e) { _o->white_kings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->white_kings[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->white_kings.resize(0); } }
-  { auto _e = black_kings(); if (_e) { _o->black_kings.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->black_kings[_i] = ::flatbuffers::UnPack(*_e->Get(_i)); } } else { _o->black_kings.resize(0); } }
-  { auto _e = moves(); if (_e) { _o->moves.resize(_e->size()); for (::flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->moves[_i] = *_e->Get(_i); } } else { _o->moves.resize(0); } }
-}
-
-inline ::flatbuffers::Offset<ChessBoard> ChessBoard::Pack(::flatbuffers::FlatBufferBuilder &_fbb, const ChessBoardT* _o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  return CreateChessBoard(_fbb, _o, _rehasher);
-}
-
-inline ::flatbuffers::Offset<ChessBoard> CreateChessBoard(::flatbuffers::FlatBufferBuilder &_fbb, const ChessBoardT *_o, const ::flatbuffers::rehasher_function_t *_rehasher) {
-  (void)_rehasher;
-  (void)_o;
-  struct _VectorArgs { ::flatbuffers::FlatBufferBuilder *__fbb; const ChessBoardT* __o; const ::flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
-  auto _white_pawns = _o->white_pawns.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->white_pawns) : 0;
-  auto _black_pawns = _o->black_pawns.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->black_pawns) : 0;
-  auto _white_bishops = _o->white_bishops.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->white_bishops) : 0;
-  auto _black_bishops = _o->black_bishops.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->black_bishops) : 0;
-  auto _white_knights = _o->white_knights.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->white_knights) : 0;
-  auto _black_knights = _o->black_knights.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->black_knights) : 0;
-  auto _white_rooks = _o->white_rooks.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->white_rooks) : 0;
-  auto _black_rooks = _o->black_rooks.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->black_rooks) : 0;
-  auto _white_queens = _o->white_queens.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->white_queens) : 0;
-  auto _black_queens = _o->black_queens.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->black_queens) : 0;
-  auto _white_kings = _o->white_kings.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->white_kings) : 0;
-  auto _black_kings = _o->black_kings.size() ? _fbb.CreateVectorOfNativeStructs<Serializer::Coord, ZocoloChess::coordinate>(_o->black_kings) : 0;
-  auto _moves = _o->moves.size() ? _fbb.CreateVectorOfStructs(_o->moves) : 0;
-  return Serializer::CreateChessBoard(
-      _fbb,
-      _white_pawns,
-      _black_pawns,
-      _white_bishops,
-      _black_bishops,
-      _white_knights,
-      _black_knights,
-      _white_rooks,
-      _black_rooks,
-      _white_queens,
-      _black_queens,
-      _white_kings,
-      _black_kings,
-      _moves);
-}
-
 inline const Serializer::ChessBoard *GetChessBoard(const void *buf) {
   return ::flatbuffers::GetRoot<Serializer::ChessBoard>(buf);
 }
 
 inline const Serializer::ChessBoard *GetSizePrefixedChessBoard(const void *buf) {
   return ::flatbuffers::GetSizePrefixedRoot<Serializer::ChessBoard>(buf);
-}
-
-inline ChessBoard *GetMutableChessBoard(void *buf) {
-  return ::flatbuffers::GetMutableRoot<ChessBoard>(buf);
-}
-
-inline Serializer::ChessBoard *GetMutableSizePrefixedChessBoard(void *buf) {
-  return ::flatbuffers::GetMutableSizePrefixedRoot<Serializer::ChessBoard>(buf);
 }
 
 inline bool VerifyChessBoardBuffer(
@@ -534,18 +462,6 @@ inline void FinishSizePrefixedChessBoardBuffer(
     ::flatbuffers::FlatBufferBuilder &fbb,
     ::flatbuffers::Offset<Serializer::ChessBoard> root) {
   fbb.FinishSizePrefixed(root);
-}
-
-inline std::unique_ptr<Serializer::ChessBoardT> UnPackChessBoard(
-    const void *buf,
-    const ::flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<Serializer::ChessBoardT>(GetChessBoard(buf)->UnPack(res));
-}
-
-inline std::unique_ptr<Serializer::ChessBoardT> UnPackSizePrefixedChessBoard(
-    const void *buf,
-    const ::flatbuffers::resolver_function_t *res = nullptr) {
-  return std::unique_ptr<Serializer::ChessBoardT>(GetSizePrefixedChessBoard(buf)->UnPack(res));
 }
 
 }  // namespace Serializer
