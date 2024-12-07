@@ -28,4 +28,13 @@ and list of moves
 locally, keeping a grid 
 choice:
 must either rewrite game state from scratch, or update in place
-won't make a big difference given the size, but lets reference the piece data and update in place.
+won't make a big difference given the size, but the algorithm should be simpler if we have one path for serializing the data.
+
+init board data
+move:
+change grid
+change data
+
+contract/invariables:
+game changes the internal game logic's struct, then serializes the new 
+one method to load the data from current board's state

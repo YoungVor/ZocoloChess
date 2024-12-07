@@ -1,6 +1,9 @@
 #include "ChessGame.h"
 #include "Chess_generated.h"
+#include "ClientInterface.h"
 #include "utils.h"
+#include <__algorithm/ranges_for_each.h>
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <format>
@@ -25,24 +28,63 @@ std::string Piece::pretty_string() {
     return ss.str();
 }
 
-ChessGame::ChessGame(GameClientIF *cl) {
-  client.reset(cl);
+ChessGame::ChessGame(std::shared_ptr<GameClientIF> cl) {
+  client = cl;
   init_new_board();
 }
 
-void ChessGame::load_board(uid_t id) {
-  //board_data = Serializer::GetChessBoard(board_data_ptr.get());
-}
+Error ChessGame::load_board_data(char *game_data) {
+
+  //reset board
+  move_log.clear();
+  auto board_data = Serializer::GetChessBoard(game_data);
+  for (int ro = 0; ro < BOARD_LENGTH; ro ++) {
+    for (int co = 0; co < BOARD_LENGTH; co++) {
+      boardArray[co][ro] = Piece(coordinate(co,ro));
+    }
+  }
+
+  auto load_pieces = [this](Color color, PieceType type, const flatbuffers::Vector<const Serializer::Coord *> &piece_vector) {
+     for (auto pieceCoord : piece_vector) {
+       coordinate coord = flatbuffers::UnPack(*pieceCoord);
+       if (coord.isValid()) {
+         this->selectSpace(coord) = Piece(coord, color, type);
+       }
+     }
+  };
+
+  for (auto move : *board_data->moves()) {
+    move_log.push_back(flatbuffers::UnPack(*move));
+  }
+
+  load_pieces(White, Pawn, *board_data->white_pawns());
+  load_pieces(White, Bishop, *board_data->white_bishops());
+  load_pieces(White, Knight, *board_data->white_knights());
+  load_pieces(White, Rook, *board_data->white_rooks());
+  load_pieces(White, Queen, *board_data->white_queens());
+  load_pieces(White, King, *board_data->white_kings());
+  load_pieces(Black, Pawn, *board_data->black_pawns());
+  load_pieces(Black, Bishop, *board_data->black_bishops());
+  load_pieces(Black, Knight, *board_data->black_knights());
+  load_pieces(Black, Rook, *board_data->black_rooks());
+  load_pieces(Black, Queen, *board_data->black_queens());
+  load_pieces(Black, King, *board_data->black_kings());
+  whiteKingCanCastleA = board_data->white_king_can_castle_a();
+  whiteKingCanCastleH = board_data->white_king_can_castle_h();
+  blackKingCanCastleA = board_data->black_king_can_castle_a();
+  blackKingCanCastleH = board_data->black_king_can_castle_h();
+  moveCount = board_data->move_count();
+  assert(moveCount == move_log.size());
+  state = Turn;
+  winner = None;
+  return Error::valid;
+ }
 
 void ChessGame::init_new_board() {
   DEBUG("init board");
   id = boost::uuids::random_generator()();
-  auto piece = Piece(coordinate(A,0), White, Rook);
    std::stringstream ss;
-  boardArray[A][0] = piece;
-  ss << "piece at A,0: " << boardArray[A][0].pretty_string() << std::endl;
-  ss << "assigned at A,0: " << piece.pretty_string() << std::endl;
-
+  boardArray[A][0] = Piece(coordinate(A,0), White, Rook);
   // TODO: should be a single authority on the piece position.  maybe remove 'pos' from the Piece
   boardArray[H][0] = Piece(coordinate(H,0), White, Rook);
   boardArray[C][0] = Piece(coordinate(C,0), White, Bishop);
@@ -162,6 +204,9 @@ Error ChessGame::write_board_data() {
     }
   }
   std::vector<Serializer::Move> moves;
+  for (auto move : move_log) {
+    moves.push_back(flatbuffers::Pack(move));
+  }
   auto packedID = builder.CreateString(boost::uuids::to_string(id));
 
 
@@ -187,7 +232,7 @@ Error ChessGame::write_board_data() {
                                             builder.CreateVectorOfStructs(moves.data(), moves.size()));
   builder.Finish(board);
 
-  client->write_board(id, (char*)builder.GetBufferPointer(), builder.GetBufferMinAlignment());
+  client->write_board(id, (char*)builder.GetBufferPointer(), builder.GetSize());
 
   return Error::valid;
 }
@@ -251,7 +296,8 @@ std::string ChessGame::pretty_string(Color orientation) {
   ss << "   " << std::string(square_length*BOARD_LENGTH+1, '-') << std::endl;
   ss << "   "; // left boarder
   for (int c = A; c < BOARD_LENGTH; c++) {
-    ss << std::string(8, ' ') << (Collumn) c << std::string(7, ' ');
+    int colIndex = (orientation == White) ? c : BOARD_LENGTH - c - 1;
+    ss << std::string(8, ' ') << (Collumn) colIndex << std::string(7, ' ');
   }
 
   return ss.str();
@@ -433,9 +479,13 @@ std::vector<coordinate> ChessGame::possible_pawn_moves(coordinate pos) {
   // collumn move
   if (validEmptySpace(moveCoord)) {
     retMoves.push_back(moveCoord);
-    moveCoord = moveCoord.incRow(up);
-    if (validEmptySpace(moveCoord)) {
-      retMoves.push_back(moveCoord);
+    if ((up == 1 && pos.row == 1) ||
+        (up == -1 && pos.row == 6)) {
+      // pawn can start with a double move
+      moveCoord = moveCoord.incRow(up);
+      if (validEmptySpace(moveCoord)) {
+        retMoves.push_back(moveCoord);
+      }
     }
   }
   // check diagonal attack

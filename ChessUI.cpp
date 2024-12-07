@@ -47,6 +47,7 @@ using namespace ZocoloChess;
 
 const std::map<std::string, ChessResponseType> ResponseMap{
     {"l", load_game_rt},    {"load", load_game_rt},
+    {"t", list_games_rt},     {"list", list_games_rt},
     {"n", new_game_rt},    {"new", new_game_rt},
     {"w", color_white_rt},  {"white", color_white_rt},
     {"b", color_black_rt},  {"black", color_black_rt},
@@ -75,7 +76,19 @@ const std::map<ChessResponseType, PieceType> PieceMap {
   { knight_rt, Knight },
 };
 
-
+//
+ChessResponseType SimpleChessUI::parse_load_game(std::vector<std::string> &words) {
+  char *buffer;
+  int buffer_size;
+  boost::uuids::uuid load_id(boost::lexical_cast<boost::uuids::uuid>(words.front()));
+  auto err = client->read_board(load_id, &buffer, buffer_size);
+  if (err != success) {
+    log(TRACE, "load_game failed to load game with id:" + words.front());
+    return error_rt;
+  }
+  game->load_board_data(buffer);
+  return load_game_rt;
+}
 
 Error SimpleChessUI::parse_coordinate(std::string input, coordinate *coord) {
   DEBUG("parse_coord check:'" + input + "'");
@@ -139,6 +152,7 @@ ChessResponseType SimpleChessUI::parse_coordinate_command(const std::vector<Ches
 }
 
 ChessResponseType SimpleChessUI::parse_user_command(const std::vector<ChessResponseType> &options,
+                                                    bool try_load,
                                                     coordinate *coord,
                                                     coordinate *secondCoord)
 {
@@ -172,9 +186,11 @@ ChessResponseType SimpleChessUI::parse_user_command(const std::vector<ChessRespo
     // TODO: handle arguments
     return resp->second;
   }
-  auto coordResp = parse_coordinate_command(options, words, coord, secondCoord);
-  if (coordResp != error_rt) {
-    return coordResp;
+  if (coord != nullptr) {
+    return parse_coordinate_command(options, words, coord, secondCoord);
+  }
+  if (try_load) {
+    return parse_load_game(words);
   }
   return error_rt;
 }
@@ -183,16 +199,20 @@ Error SimpleChessUI::run_menu() {
   std::cout << "Options:" << std::endl;
   std::cout << "  [l]/[load] game" << std::endl;
   std::cout << "  [n]/[new] game" << std::endl;
+  std::cout << "  [t]/lis[t] games" << std::endl;
   std::cout << "  [x]/[exit] " << std::endl;
-  auto resp = parse_user_command({ new_game_rt, load_game_rt, exit_rt });
+  auto resp = parse_user_command({ new_game_rt, load_game_rt, exit_rt, list_games_rt });
   switch(resp) {
   case new_game_rt:
     game->init_new_board();
     state = st_setup;
     return valid;
+  case list_games_rt:
+    run_list_games();
+    return valid;
   case load_game_rt:
-    std::cout << "Loading Game not supported yet.";
-    return invalid_move;
+    state = st_load;
+    return valid;
   case exit_rt:
     game.reset();
     state = st_exit;
@@ -201,6 +221,31 @@ Error SimpleChessUI::run_menu() {
     return bad_state;
   }
 }
+
+Error SimpleChessUI::run_list_games() {
+  char *buffer;
+  int buffer_size;
+  // TODO: give basic paging query options to the caller
+  client->list_games(&buffer, buffer_size);
+  std::cout << std::string(buffer) << std::endl;
+  state = st_menu;
+  return Error::valid;
+}
+
+Error SimpleChessUI::run_load() {
+  std::cout << "Type a game id, or [c]ancel" << std::endl;
+  auto resp = parse_user_command({ cancel_rt }, true);
+  if (resp == cancel_rt) {
+    state = st_menu;
+    return valid;
+  }
+  if (resp == load_game_rt) {
+    state = st_setup;
+    return valid;
+  }
+  return bad_state;
+}
+
 
 Error SimpleChessUI::run_setup() {
   std::cout << "Select a color: [w]hite, [b]lack, rando[m], [o]bserver: ";
@@ -249,7 +294,7 @@ Error SimpleChessUI::run_play() {
   }
   coordinate coord;
   coordinate destCoord;
-  auto resp = parse_user_command(options, &coord, &destCoord);
+  auto resp = parse_user_command(options, false, &coord, &destCoord);
   switch (resp) {
   case select_piece_rt:
   case move_rt: {
@@ -303,7 +348,7 @@ Error SimpleChessUI::run_move_selected() {
   for (auto m : possibleMoves) { std::cout << m << ","; }
   std::cout << ")" << std::endl;
   std::cout << "or [c]ancel" << std::endl;
-  auto resp = parse_user_command( { move_selected_rt, cancel_rt }, &destCoord);
+  auto resp = parse_user_command( { move_selected_rt, cancel_rt }, false, &destCoord);
   switch (resp) {
   case move_selected_rt: {
     if (move_piece(selectedPiece, destCoord) == valid) {
@@ -365,7 +410,8 @@ int SimpleChessUI::main_loop() {
       std::cout << "Welcome to Zocolo Chess Text Player!" << std::endl;
       // TODO: choose clients.  For now, use filesystem client
       // TODO: set user id
-      GameClientIF *client = new FileClientIF();
+      client.reset(new FileClientIF());
+      client->init_buffer();
       game.reset(new ChessGame(client));
       state = st_menu;
     }
@@ -375,6 +421,10 @@ int SimpleChessUI::main_loop() {
     case st_setup: {
       err = run_setup();
       break; }
+    case st_load: {
+      err = run_load();
+      break;
+    }
     case st_play: {
       err = run_play();
       break; }

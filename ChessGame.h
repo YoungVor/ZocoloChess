@@ -76,6 +76,7 @@ enum Error {
   not_players_turn,
   bad_state,
   out_of_bounds,
+  no_such_game,
 };
 
 struct coordinate {
@@ -151,7 +152,7 @@ struct Piece {
 class ChessGame {
 private:
   //std::shared_ptr<char> board_data_ptr;
-  std::unique_ptr<GameClientIF> client;
+  std::shared_ptr<GameClientIF> client;
   //const Serializer::ChessBoard *board_data;
   boost::uuids::uuid id;
   Piece boardArray[8][8];
@@ -170,7 +171,7 @@ private:
  std::vector<coordinate> spaces_defended_black;
   // do I need a reference to the buffer?
  public:
-  ChessGame(GameClientIF *cl);
+  ChessGame(std::shared_ptr<GameClientIF> cl);
   void init_new_board();
 
   // convenience functions

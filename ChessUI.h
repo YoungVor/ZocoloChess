@@ -6,6 +6,7 @@
 #include "ClientInterface.h"
 #include "FileClientInterface.h"
 #include <map>
+#include <memory>
 
 
 namespace ZocoloChess {
@@ -13,6 +14,7 @@ namespace ZocoloChess {
 enum ChessGameState {
   st_init,
   st_menu,
+  st_load,
   st_setup,
   st_play,
   st_selected,
@@ -21,6 +23,7 @@ enum ChessGameState {
 
 enum ChessResponseType {
   load_game_rt,
+  list_games_rt,
   new_game_rt,
   color_white_rt,
   color_black_rt,
@@ -53,6 +56,7 @@ class SimpleChessUI {
   //    API for user to load chessboard
   //    API for user to write chessboard state back
   std::unique_ptr<ChessGame> game;
+  std::shared_ptr<GameClientIF> client; // shared with the game object
   // specific state logic
   // game logic
   std::string id;
@@ -64,22 +68,25 @@ class SimpleChessUI {
   Error run_menu();
   Error run_setup();
   Error run_play();
+  Error run_load();
+  Error run_list_games();
   Error run_move_selected();
 
 
   Error setup();
-  Error load_board(uid_t id);
   Error create_board();
-  Error save_board(uid_t id);
   Error play_game(); // requires game to be set
 
   ChessResponseType parse_user_command(const std::vector<ChessResponseType> &options,
+                                       bool try_load = false,
                                        coordinate *coord = nullptr,
                                        coordinate *secondCoord = nullptr);
   ChessResponseType parse_coordinate_command(const std::vector<ChessResponseType> &options,
                                              std::vector<std::string> &words,
                                              coordinate *coord = nullptr,
                                              coordinate *secondCoord = nullptr);
+
+  ChessResponseType parse_load_game(std::vector<std::string> &words);
   Error parse_coordinate(std::string input, coordinate *coord);
 
   Error move_piece(coordinate coord, coordinate destCoord);

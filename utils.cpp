@@ -82,4 +82,13 @@ namespace flatbuffers {
   const coordinate UnPack(const Serializer::Coord& obj) {
     return coordinate(obj.column(), obj.row());
   }
+
+  Serializer::Move Pack(const move& obj) {
+    return Serializer::Move(Pack(obj.piece), Pack(obj.newPos));
+  }
+
+  const move UnPack(const Serializer::Move& obj) {
+    return move(UnPack(obj.piece()), UnPack(obj.dest()));
+  }
+
 }
