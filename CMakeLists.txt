@@ -13,8 +13,9 @@ find_package(flatbuffers 3.30 REQUIRED)
 # PATHS /opt/homebrew/Cellar/flatbuffers/24.3.25/include)
 
 set(SOURCES
-utils.h
-utils.cpp
+system_utils.h
+serializer_utils.h
+serializer_utils.cpp
 ClientInterface.h
 FileClientInterface.h
 FileClientInterface.cpp

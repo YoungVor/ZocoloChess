@@ -1,7 +1,7 @@
-#ifndef UTILS_H_
-#define UTILS_H_
+#ifndef SERIALIZER_UTILS_H_
+#define SERIALIZER_UTILS_H_
 
-// Redefine utils - cannot depend on the other files
+// Redefine serializer_utils - cannot depend on the other files
 // separate file can define packing and tracing of game specific structs
 #include "ChessGame.h"
 #include "ChessUI.h"
@@ -20,4 +20,4 @@ template <typename CLASS> std::string to_string(const CLASS &obj) {
 
 
 
-#endif // UTILS_H_
+#endif // SERIALIZER_UTILS_H_

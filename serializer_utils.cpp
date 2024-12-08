@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "serializer_utils.h"
 #include "ChessGame.h"
 #include "Chess_generated.h"
 
@@ -17,7 +17,7 @@ using namespace ZocoloChess;
 using std::to_string;
 
 
-// TODO: add this to a utils file
+// TODO: add this to a serializer_utils file
 void log(LogLevel level, std::string out) {
   if (log_level >= level) {
     std::cout << "(" << log_level <<  ")" << out << std::endl;

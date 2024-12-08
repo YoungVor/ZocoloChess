@@ -5,8 +5,7 @@
 #include "Chess_generated.h"
 #include "ClientInterface.h"
 #include "FileClientInterface.h"
-#include <map>
-#include <memory>
+#include "system_utils.h"
 
 
 namespace ZocoloChess {
