@@ -73,6 +73,7 @@ Error ChessGame::load_board_data(char *game_data) {
   assert(moveCount == move_log.size());
   state = Turn;
   winner = None;
+  id = boost::lexical_cast<boost::uuids::uuid>(board_data->id()->str());
   return Error::valid;
  }
 
@@ -235,19 +236,16 @@ Error ChessGame::write_board_data() {
 
 
 
-Color ChessGame::playerTurn() {
-  return (moveCount % 2 == 1) ? Black : White;
-}
+Color ChessGame::playerTurn() { return (moveCount % 2 == 1) ? Black : White; }
 
-  #define square_length 16
-#define square_height 4
-#define board_length = 16 * 8
+
 std::string ChessGame::pretty_string(Color orientation) {
   std::stringstream ss;
   std::stringstream tmpSS;
   if (orientation != Black) { orientation = White; }
   Color firstSqColor = White; // bottom square to the right of each player is always white
   Color curSquare = firstSqColor;
+  ss << metadata_string() << std::endl;
   for (int r = 0; r < BOARD_LENGTH; r++) {
     int rowIndex = (orientation == Black) ? r : BOARD_LENGTH - r - 1;
     // Top Boarder
@@ -318,6 +316,13 @@ std::string ChessGame::state_string() {
     return "Game over: Stalemate.";
   }
 }
+
+std::string ChessGame::metadata_string() {
+  std::stringstream ss;
+  ss << "GameID:" <<  boost::uuids::to_string(id) << " Move:" << move_log.size() + 1 << ", " << playerTurn() << "'s turn.'";
+  return ss.str();
+}
+
 
 Error ChessGame::movePiece(coordinate pos, coordinate dest) {
   // Check if

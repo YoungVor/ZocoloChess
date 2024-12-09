@@ -26,6 +26,9 @@
 namespace ZocoloChess {
 
 #define BOARD_LENGTH 8
+#define square_length 16
+#define square_height 4
+#define board_length = 16 * 8
 #define UP 1
 #define DOWN -1
 #define LEFT -1
@@ -195,6 +198,7 @@ private:
  // One possible way - convenience function to determine if any piece is under attack
 
   std::string pretty_string(Color orientation);
+  std::string metadata_string();
   std::string state_string();
   Error load_board_data(char *read_buffer);
  private:
