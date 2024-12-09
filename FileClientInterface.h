@@ -3,12 +3,14 @@
 
 #include "ClientInterface.h"
 #include "system_utils.h"
+#include <sstream>
 
 // TODO: creqte a static initializer to set variables like path and block size
 
 class FileClientIF : public GameClientIF {
 private:
   int buffer_size;
+  int cur_msg_size; // reset when read/list command returns
   std::unique_ptr<char> buffer;
   std::string path;
   std::string get_path();
